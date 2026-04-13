@@ -1,0 +1,75 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { GtAuthModule } from '@globaltracking/auth-middleware/nestjs';
+import { validationSchema } from './common/config/app.config';
+import { getDatabaseConfig } from './common/config/database.config';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { VehicleDocumentsModule } from './modules/vehicle-documents/vehicle-documents.module';
+import { HealthModule } from './modules/health/health.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema,
+      validationOptions: {
+        abortEarly: true,
+      },
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: getDatabaseConfig,
+    }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: config.get<number>('RATE_LIMIT_WINDOW_MS') ?? 60000,
+            limit: config.get<number>('RATE_LIMIT_MAX') ?? 100,
+          },
+        ],
+      }),
+    }),
+
+    // Replaces InternalOnlyGuard, PermissionsGuard, OrgContextInterceptor, TrustedHeadersMiddleware
+    GtAuthModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        strategies: ['trusted-headers'] as const,
+        internalGatewayToken: config.get<string>('INTERNAL_GATEWAY_TOKEN'),
+        adminRoles: ['system_admin', 'org_admin'],
+        rbacServiceUrl: config.get<string>('RBAC_SERVICE_URL'),
+      }),
+    }),
+
+    VehiclesModule,
+    VehicleDocumentsModule,
+    HealthModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
+})
+export class AppModule {}

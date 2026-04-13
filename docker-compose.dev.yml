@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "3001:3001"
+      - "9230:9229"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=gt_vehicle
+      - DB_PASSWORD=gt_vehicle_secret
+      - DB_DATABASE=gt_vehicle_db
+      - DB_SSL=false
+      - DB_LOGGING=true
+      - DB_POOL_MAX=20
+      - DB_POOL_IDLE_TIMEOUT_MS=30000
+      - DB_POOL_CONNECTION_TIMEOUT_MS=5000
+      - INTERNAL_GATEWAY_TOKEN=dev-gateway-token-not-for-production-min-32
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX=1000
+      - CORS_ORIGINS=http://localhost:4200
+      - LOG_LEVEL=debug
+    command: npm run start:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gt-network
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=gt_vehicle
+      - POSTGRES_PASSWORD=gt_vehicle_secret
+      - POSTGRES_DB=gt_vehicle_db
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gt_vehicle -d gt_vehicle_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gt-network
+
+volumes:
+  pgdata-dev:
+
+networks:
+  gt-network:
+    driver: bridge
