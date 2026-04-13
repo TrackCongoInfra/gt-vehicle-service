@@ -16,8 +16,7 @@ export const getDatabaseConfig = (
   logging: configService.get<boolean>('DB_LOGGING'),
   autoLoadEntities: true,
   synchronize: false,
-  migrations: [__dirname + '/../../database/migrations/*{.ts,.js}'],
-  migrationsRun: true,
+  migrationsRun: false,
   extra: {
     max: configService.get<number>('DB_POOL_MAX') ?? 20,
     idleTimeoutMillis:

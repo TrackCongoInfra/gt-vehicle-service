@@ -16,4 +16,4 @@ COPY --from=builder /app/dist ./dist
 USER appuser
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:3001/api/v1/health || exit 1
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

@@ -18,4 +18,14 @@ export class FilterVehicleDto extends PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by connectivity state' })
+  @IsOptional()
+  @IsString()
+  connectivityState?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by ignition state' })
+  @IsOptional()
+  @IsString()
+  ignitionState?: string;
 }

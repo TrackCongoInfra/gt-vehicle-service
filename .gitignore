@@ -8,6 +8,7 @@ dist/
 .env
 .env.local
 .env.*.local
+workflows/cloudrun-env.yaml
 
 # Test & coverage
 coverage/

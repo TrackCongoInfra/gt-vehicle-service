@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -11,7 +12,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { OwnershipType, VehicleStatus, VehicleType } from '../entities/vehicle.entity';
+import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
 
 export class UpdateVehicleDto {
   @ApiPropertyOptional({ example: 'KBZ 456B' })
@@ -72,21 +73,34 @@ export class UpdateVehicleDto {
   @MaxLength(50)
   engineNumber?: string;
 
+  @ApiPropertyOptional({ example: 'Panel Van' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  vehicleBody?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(150)
   ownerName?: string;
 
-  @ApiPropertyOptional({ enum: OwnershipType })
+  @ApiPropertyOptional({ example: 'company' })
   @IsOptional()
-  @IsEnum(OwnershipType)
-  ownedBy?: OwnershipType;
+  @IsString()
+  @MaxLength(50)
+  ownedBy?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 5.0 })
   @IsOptional()
-  @IsUUID()
-  operatorId?: string;
+  @IsNumber({ maxDecimalPlaces: 1 })
+  capacity?: number;
+
+  @ApiPropertyOptional({ example: 'Driver Name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  operator?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -109,6 +123,13 @@ export class UpdateVehicleDto {
   @Min(0)
   @Max(300)
   speedLimitKmh?: number;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  idleThresholdMin?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

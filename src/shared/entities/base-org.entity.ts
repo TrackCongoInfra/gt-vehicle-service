@@ -10,13 +10,13 @@ export abstract class BaseOrgEntity {
   @PrimaryColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', name: 'org_id' })
+  @Column({ type: 'uuid', name: 'organization_id' })
   @Index()
   orgId: string;
 
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
+  @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updatedAt: Date;
 }

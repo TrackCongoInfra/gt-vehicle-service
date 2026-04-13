@@ -29,7 +29,7 @@ export const validationSchema = Joi.object({
   RATE_LIMIT_MAX: Joi.number().default(100),
 
   // CORS
-  CORS_ORIGINS: Joi.string().default('*'),
+  CORS_ORIGINS: Joi.string().allow('').default(''),
 
   // Logging
   LOG_LEVEL: Joi.string()

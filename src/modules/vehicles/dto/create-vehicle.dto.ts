@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -12,7 +13,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { OwnershipType, VehicleStatus, VehicleType } from '../entities/vehicle.entity';
+import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
 
 export class CreateVehicleDto {
   @ApiProperty({ example: 'KBZ 123A', description: 'Vehicle registration number' })
@@ -73,21 +74,34 @@ export class CreateVehicleDto {
   @MaxLength(50)
   engineNumber?: string;
 
+  @ApiPropertyOptional({ example: 'Panel Van', description: 'Vehicle body type' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  vehicleBody?: string;
+
   @ApiPropertyOptional({ example: 'John Doe' })
   @IsOptional()
   @IsString()
   @MaxLength(150)
   ownerName?: string;
 
-  @ApiPropertyOptional({ enum: OwnershipType })
+  @ApiPropertyOptional({ example: 'company', description: 'Ownership type (company, leased, personal, etc.)' })
   @IsOptional()
-  @IsEnum(OwnershipType)
-  ownedBy?: OwnershipType;
+  @IsString()
+  @MaxLength(50)
+  ownedBy?: string;
 
-  @ApiPropertyOptional({ example: 'uuid', description: 'Assigned operator/driver user ID' })
+  @ApiPropertyOptional({ example: 5.0, description: 'Vehicle capacity (tons, seats, etc.)' })
   @IsOptional()
-  @IsUUID()
-  operatorId?: string;
+  @IsNumber({ maxDecimalPlaces: 1 })
+  capacity?: number;
+
+  @ApiPropertyOptional({ example: 'Driver Name', description: 'Assigned operator/driver name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  operator?: string;
 
   @ApiPropertyOptional({ example: 80.0, description: 'Fuel tank capacity in liters' })
   @IsOptional()
@@ -110,6 +124,13 @@ export class CreateVehicleDto {
   @Min(0)
   @Max(300)
   speedLimitKmh?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'Idle threshold in minutes' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  idleThresholdMin?: number;
 
   @ApiPropertyOptional({ example: '2026-12-31' })
   @IsOptional()

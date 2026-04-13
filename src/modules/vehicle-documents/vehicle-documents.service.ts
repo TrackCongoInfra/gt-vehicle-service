@@ -111,23 +111,33 @@ export class VehicleDocumentsService {
     orgId: string,
     userId: string,
     action: string,
-    entityType: string,
-    entityId: string,
+    resourceType: string,
+    resourceId: string,
     oldValue: any,
     newValue: any,
     ipAddress?: string,
   ): Promise<void> {
-    const log = this.auditLogRepo.create({
-      id: uuidv4(),
-      orgId,
-      userId,
-      action,
-      entityType,
-      entityId,
-      oldValue,
-      newValue,
-      ipAddress,
-    });
-    await this.auditLogRepo.save(log);
+    try {
+      const log = this.auditLogRepo.create({
+        id: uuidv4(),
+        organizationId: orgId,
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        changes: oldValue && newValue
+          ? { old: oldValue, new: newValue }
+          : oldValue
+            ? { old: oldValue }
+            : newValue
+              ? { new: newValue }
+              : null,
+        ipAddress,
+      });
+      await this.auditLogRepo.save(log);
+    } catch (err) {
+      // Don't let audit failures break business operations
+      console.error('Failed to write audit log:', err.message);
+    }
   }
 }

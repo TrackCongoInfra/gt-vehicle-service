@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { GtAuthModule } from '@globaltracking/auth-middleware/nestjs';
+import { GtAuthConfigModule } from './common/modules/gt-auth-config.module';
 import { validationSchema } from './common/config/app.config';
 import { getDatabaseConfig } from './common/config/database.config';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
@@ -39,10 +39,10 @@ import { HealthModule } from './modules/health/health.module';
     }),
 
     // Replaces InternalOnlyGuard, PermissionsGuard, OrgContextInterceptor, TrustedHeadersMiddleware
-    GtAuthModule.forRootAsync({
+    GtAuthConfigModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        strategies: ['trusted-headers'] as const,
+        strategies: ['gateway-header', 'trusted-headers'] as const,
         internalGatewayToken: config.get<string>('INTERNAL_GATEWAY_TOKEN'),
         adminRoles: ['system_admin', 'org_admin'],
         rbacServiceUrl: config.get<string>('RBAC_SERVICE_URL'),
