@@ -23,11 +23,15 @@ async function bootstrap() {
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: true, limit: '1mb' }));
 
-  // CORS — never default to * in production
+  // CORS — allow all origins in dev, restrict in production via CORS_ORIGINS
   const corsOrigins = configService.get<string>('CORS_ORIGINS');
   app.enableCors({
-    origin: corsOrigins ? corsOrigins.split(',').map((o) => o.trim()) : [],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: corsOrigins
+      ? corsOrigins.split(',').map((o) => o.trim()).filter(Boolean)
+      : true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders:
+      'Content-Type,Authorization,X-Gateway-Token,X-Apigateway-Api-Userinfo',
     credentials: true,
   });
 
