@@ -39,14 +39,21 @@ import { HealthModule } from './modules/health/health.module';
     }),
 
     // Official auth module — wires middleware + guards + initAuth(config)
-    // so the trusted-headers strategy chain is actually active. Previously
-    // a custom GtAuthConfigModule provided the config but never called
-    // initAuth(), causing all requests to fall through to the default
-    // strategies (gateway-header, jwt) and fail with 401.
+    // so the strategy chain is actually active. Previously a custom
+    // GtAuthConfigModule provided the config but never called initAuth(),
+    // causing every request to fall through to the built-in defaults and
+    // fail with "No authentication credentials provided".
+    //
+    // Both strategies are needed because traffic arrives from two gateways:
+    //   - GCP API Gateway (gt-gateway-*.uc.gateway.dev)  → forwards as
+    //     `x-apigateway-api-userinfo` header → gateway-header strategy
+    //   - Cloud Run gateway (gt-api-gateway-*.run.app)   → forwards trusted
+    //     headers (x-user-id, x-org-id, x-gateway-token) → trusted-headers
+    // Drop either one and the corresponding callers start getting 500s.
     GtAuthModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        strategies: ['trusted-headers'] as const,
+        strategies: ['gateway-header', 'trusted-headers'] as const,
         internalGatewayToken: config.get<string>('INTERNAL_GATEWAY_TOKEN'),
         adminRoles: ['system_admin', 'org_admin'],
         rbacServiceUrl: config.get<string>('RBAC_SERVICE_URL'),
