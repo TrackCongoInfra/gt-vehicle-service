@@ -27,8 +27,15 @@ export class Vehicle extends BaseOrgEntity {
   @Column({ type: 'varchar', length: 30, name: 'vehicle_no' })
   vehicleNo: string;
 
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  transporter: string | null;
+
   @Column({ type: 'uuid', name: 'current_device_id', nullable: true })
-  currentDeviceId: string;
+  currentDeviceId: string | null;
+
+  // Owner / assigned user (subscription details live on organization_users for this user)
+  @Column({ type: 'uuid', name: 'user_id', nullable: true })
+  userId: string | null;
 
   @Column({ type: 'varchar', name: 'v_type', default: 'other' })
   vType: string;
@@ -43,43 +50,43 @@ export class Vehicle extends BaseOrgEntity {
   ignitionState: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  make: string;
+  make: string | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  model: string;
+  model: string | null;
 
   @Column({ type: 'smallint', nullable: true })
-  year: number;
+  year: number | null;
 
   @Column({ type: 'varchar', length: 30, nullable: true })
-  color: string;
+  color: string | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  vin: string;
+  vin: string | null;
 
   @Column({ type: 'varchar', length: 50, name: 'engine_number', nullable: true })
-  engineNumber: string;
+  engineNumber: string | null;
 
   @Column({ type: 'varchar', length: 50, name: 'vehicle_body', nullable: true })
-  vehicleBody: string;
+  vehicleBody: string | null;
 
   @Column({ type: 'varchar', length: 150, name: 'owner_name', nullable: true })
-  ownerName: string;
+  ownerName: string | null;
 
   @Column({ type: 'varchar', length: 50, name: 'owned_by', nullable: true })
-  ownedBy: string;
+  ownedBy: string | null;
 
   @Column({ type: 'decimal', precision: 8, scale: 1, nullable: true })
-  capacity: number;
+  capacity: number | null;
 
   @Column({ type: 'date', name: 'manufacture_date', nullable: true })
-  manufactureDate: Date;
+  manufactureDate: Date | null;
 
   @Column({ type: 'date', name: 'purchase_date', nullable: true })
-  purchaseDate: Date;
+  purchaseDate: Date | null;
 
   @Column({ type: 'decimal', precision: 6, scale: 1, name: 'fuel_tank_capacity_l', nullable: true })
-  fuelTankCapacityL: number;
+  fuelTankCapacityL: number | null;
 
   @Column({ type: 'decimal', precision: 12, scale: 1, name: 'odometer_km', default: 0 })
   odometerKm: number;
@@ -88,28 +95,28 @@ export class Vehicle extends BaseOrgEntity {
   engineHours: number;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  alias: string;
+  alias: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  operator: string;
+  operator: string | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, name: 'last_latitude', nullable: true })
-  lastLatitude: number;
+  lastLatitude: number | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, name: 'last_longitude', nullable: true })
-  lastLongitude: number;
+  lastLongitude: number | null;
 
   @Column({ type: 'decimal', precision: 6, scale: 1, name: 'last_speed_kmh', default: 0 })
   lastSpeedKmh: number;
 
   @Column({ type: 'smallint', name: 'last_heading', nullable: true })
-  lastHeading: number;
+  lastHeading: number | null;
 
   @Column({ type: 'text', name: 'last_address', nullable: true })
-  lastAddress: string;
+  lastAddress: string | null;
 
   @Column({ type: 'timestamp', name: 'last_data_at', nullable: true })
-  lastDataAt: Date;
+  lastDataAt: Date | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 1, name: 'today_distance_km', default: 0 })
   todayDistanceKm: number;
@@ -133,17 +140,41 @@ export class Vehicle extends BaseOrgEntity {
   idleThresholdMin: number;
 
   @Column({ type: 'date', name: 'registration_expiry', nullable: true })
-  registrationExpiry: Date;
+  registrationExpiry: Date | null;
 
   @Column({ type: 'date', name: 'insurance_expiry', nullable: true })
-  insuranceExpiry: Date;
+  insuranceExpiry: Date | null;
 
   @Column({ type: 'text', nullable: true })
-  remarks: string;
+  remarks: string | null;
+
+  // ── New form fields ──────────────────────────────────────
+
+  @Column({ type: 'decimal', precision: 6, scale: 2, default: 1 })
+  mileage: number;
+
+  @Column({ type: 'varchar', length: 30, name: 'fuel_type', nullable: true })
+  fuelType: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 1, name: 'duration_odometer', nullable: true })
+  durationOdometer: number | null;
+
+  @Column({ type: 'text', name: 'remarks_2', nullable: true })
+  remarks2: string | null;
+
+  @Column({ type: 'boolean', name: 'parking_violation_alarm', default: false })
+  parkingViolationAlarm: boolean;
+
+  // Freeform coin identifier shown in UI, e.g. "bL1gYhJ (11/05/2026)".
+  // Coin lifecycle is managed externally — we only hold the label.
+  @Column({ type: 'varchar', length: 100, name: 'attached_coin', nullable: true })
+  attachedCoin: string | null;
+
+  // ── Standard fields ──────────────────────────────────────
 
   @Column({ type: 'jsonb', name: 'custom_fields', nullable: true })
-  customFields: Record<string, any>;
+  customFields: Record<string, any> | null;
 
   @Column({ type: 'timestamp', name: 'deleted_at', nullable: true })
-  deletedAt: Date;
+  deletedAt: Date | null;
 }

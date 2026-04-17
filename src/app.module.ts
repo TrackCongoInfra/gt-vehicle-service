@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { GtAuthConfigModule } from './common/modules/gt-auth-config.module';
+import { GtAuthModule } from '@globaltracking/auth-middleware/nestjs';
 import { validationSchema } from './common/config/app.config';
 import { getDatabaseConfig } from './common/config/database.config';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
@@ -38,11 +38,15 @@ import { HealthModule } from './modules/health/health.module';
       }),
     }),
 
-    // Replaces InternalOnlyGuard, PermissionsGuard, OrgContextInterceptor, TrustedHeadersMiddleware
-    GtAuthConfigModule.forRootAsync({
+    // Official auth module — wires middleware + guards + initAuth(config)
+    // so the trusted-headers strategy chain is actually active. Previously
+    // a custom GtAuthConfigModule provided the config but never called
+    // initAuth(), causing all requests to fall through to the default
+    // strategies (gateway-header, jwt) and fail with 401.
+    GtAuthModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        strategies: ['gateway-header', 'trusted-headers'] as const,
+        strategies: ['trusted-headers'] as const,
         internalGatewayToken: config.get<string>('INTERNAL_GATEWAY_TOKEN'),
         adminRoles: ['system_admin', 'org_admin'],
         rbacServiceUrl: config.get<string>('RBAC_SERVICE_URL'),
