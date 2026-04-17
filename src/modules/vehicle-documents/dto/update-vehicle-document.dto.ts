@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateVehicleDocumentDto {
   @ApiPropertyOptional({ example: 'insurance' })
@@ -16,12 +16,12 @@ export class UpdateVehicleDocumentDto {
 
   @ApiPropertyOptional({ example: '2024-06-01' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   issuedDate?: string;
 
   @ApiPropertyOptional({ example: '2027-06-01' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   expiryDate?: string;
 
   @ApiPropertyOptional()

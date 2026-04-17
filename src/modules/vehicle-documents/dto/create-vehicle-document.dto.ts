@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateVehicleDocumentDto {
   @ApiProperty({ example: 'registration', description: 'Document type (registration, insurance, inspection, permit)' })
@@ -16,12 +16,12 @@ export class CreateVehicleDocumentDto {
 
   @ApiPropertyOptional({ example: '2024-01-01' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   issuedDate?: string;
 
   @ApiPropertyOptional({ example: '2026-12-31' })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   expiryDate?: string;
 
   @ApiPropertyOptional({ example: 'https://storage.example.com/docs/reg-123.pdf' })

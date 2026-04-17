@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +14,8 @@ import { VehiclesService } from '../vehicles/vehicles.service';
 
 @Injectable()
 export class VehicleDocumentsService {
+  private readonly logger = new Logger(VehicleDocumentsService.name);
+
   constructor(
     @InjectRepository(VehicleDocument)
     private readonly docRepo: Repository<VehicleDocument>,
@@ -40,7 +43,9 @@ export class VehicleDocumentsService {
 
     const saved = await this.docRepo.save(doc);
 
-    await this.logAudit(orgId, userId, 'vehicle_document.created', 'vehicle_document', saved.id, null, saved, ipAddress);
+    this.logger.log(`Document created: ${saved.id} type=${dto.docType} vehicle=${vehicleId}`);
+
+    await this.logAudit(orgId, userId, 'vdoc.created', 'vehicle_document', saved.id, null, saved, ipAddress);
 
     return saved;
   }
@@ -88,7 +93,9 @@ export class VehicleDocumentsService {
     Object.assign(doc, dto);
     const saved = await this.docRepo.save(doc);
 
-    await this.logAudit(orgId, userId, 'vehicle_document.updated', 'vehicle_document', docId, oldValue, saved, ipAddress);
+    this.logger.log(`Document updated: ${docId}`);
+
+    await this.logAudit(orgId, userId, 'vdoc.updated', 'vehicle_document', docId, oldValue, saved, ipAddress);
 
     return saved;
   }
@@ -104,40 +111,58 @@ export class VehicleDocumentsService {
 
     await this.docRepo.remove(doc);
 
-    await this.logAudit(orgId, userId, 'vehicle_document.deleted', 'vehicle_document', docId, doc, null, ipAddress);
+    this.logger.log(`Document deleted: ${docId}`);
+
+    await this.logAudit(orgId, userId, 'vdoc.deleted', 'vehicle_document', docId, doc, null, ipAddress);
   }
 
+  /**
+   * Append-only audit log with exponential backoff retry.
+   * Fire-and-forget — never throws to the caller.
+   */
   private async logAudit(
     orgId: string,
     userId: string,
     action: string,
-    resourceType: string,
-    resourceId: string,
+    entityType: string,
+    entityId: string,
     oldValue: any,
     newValue: any,
     ipAddress?: string,
   ): Promise<void> {
-    try {
-      const log = this.auditLogRepo.create({
-        id: uuidv4(),
-        organizationId: orgId,
-        userId,
-        action,
-        resourceType,
-        resourceId,
-        changes: oldValue && newValue
-          ? { old: oldValue, new: newValue }
-          : oldValue
-            ? { old: oldValue }
-            : newValue
-              ? { new: newValue }
-              : null,
-        ipAddress,
-      });
-      await this.auditLogRepo.save(log);
-    } catch (err) {
-      // Don't let audit failures break business operations
-      console.error('Failed to write audit log:', err.message);
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        const entry = this.auditLogRepo.create({
+          userId,
+          transporterId: orgId,
+          action,
+          entityType,
+          entityId,
+          changes: {
+            old: oldValue ?? null,
+            new: newValue ?? null,
+          },
+          ipAddress: ipAddress ?? null,
+        } as AuditLog);
+
+        await this.auditLogRepo.save(entry);
+        return;
+      } catch (err) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          this.logger.error(
+            `Failed to write audit log after ${maxRetries} attempts: ${(err as Error).message}`,
+            (err as Error).stack,
+          );
+          return; // Fire-and-forget: don't throw
+        }
+        // Exponential backoff: 100ms, 200ms, 400ms
+        const delay = 100 * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
   }
 }

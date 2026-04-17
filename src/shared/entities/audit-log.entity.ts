@@ -1,37 +1,40 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 
-@Entity('audit_logs')
+/**
+ * Maps to the shared `audit_log` table (partitioned by created_at).
+ * Append-only — never update or delete rows.
+ */
+@Entity('audit_log')
 export class AuditLog {
-  @PrimaryColumn('uuid')
-  id: string;
-
-  @Column({ type: 'uuid', name: 'organization_id' })
-  @Index()
-  organizationId: string;
+  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  id: number;
 
   @Column({ type: 'uuid', name: 'user_id', nullable: true })
-  @Index()
   userId: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'uuid', name: 'transporter_id', nullable: true })
+  transporterId: string;
+
+  @Column({ type: 'varchar', length: 50, name: 'entity_type' })
+  entityType: string;
+
+  @Column({ type: 'uuid', name: 'entity_id' })
+  entityId: string;
+
+  @Column({ type: 'varchar', length: 20 })
   action: string;
-
-  @Column({ type: 'varchar', length: 50, name: 'resource_type', nullable: true })
-  resourceType: string;
-
-  @Column({ type: 'uuid', name: 'resource_id', nullable: true })
-  resourceId: string;
 
   @Column({ type: 'jsonb', nullable: true })
   changes: any;
 
-  @Column({ type: 'inet', name: 'ip_address', nullable: true })
+  @Column({ type: 'varchar', length: 45, name: 'ip_address', nullable: true })
   ipAddress: string;
 
-  @Column({ type: 'text', name: 'user_agent', nullable: true })
-  userAgent: string;
-
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  @Index()
+  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
   createdAt: Date;
 }

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
 
@@ -14,9 +14,10 @@ export class FilterVehicleDto extends PaginationDto {
   @IsEnum(VehicleType)
   vType?: VehicleType;
 
-  @ApiPropertyOptional({ description: 'Search by vehicle number, alias, or make' })
+  @ApiPropertyOptional({ description: 'Search by vehicle number, owner name, owned by, vehicle brand, model, vehicle body, alias, or transporter' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string;
 
   @ApiPropertyOptional({ description: 'Filter by connectivity state' })

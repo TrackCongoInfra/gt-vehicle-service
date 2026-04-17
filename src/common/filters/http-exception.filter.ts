@@ -6,18 +6,32 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
+/**
+ * Global exception filter — catches every thrown exception and:
+ *
+ * 1. Logs it clearly at the right severity level:
+ *    - WARN  -> 4xx client errors (bad input, not found, forbidden)
+ *    - ERROR -> 5xx server errors (DB failures, unhandled exceptions)
+ *
+ * 2. Returns a standardised JSON error envelope to the client:
+ *    { success: false, error: { code, message, statusCode } }
+ *
+ * Log format includes: method, url, status, error code, request body, error details.
+ */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = new Logger('ExceptionFilter');
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const { method, url, body } = request;
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
+    let message: string | string[] = 'Internal server error';
     let code = 'INTERNAL_ERROR';
 
     if (exception instanceof HttpException) {
@@ -31,9 +45,27 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = resp.message || exception.message;
         code = resp.error || this.getErrorCode(status);
       }
+
+      // 4xx -> WARN  |  5xx -> ERROR
+      if (status >= 500) {
+        this.logger.error(
+          `[${method}] ${url} \u2192 ${status} ${code} | Body: ${this.safeStringify(body)} | Error: ${this.safeStringify(message)}`,
+        );
+      } else {
+        this.logger.warn(
+          `[${method}] ${url} \u2192 ${status} ${code} | Body: ${this.safeStringify(body)} | Error: ${this.safeStringify(message)}`,
+        );
+      }
     } else if (exception instanceof Error) {
-      this.logger.error(exception.message, exception.stack);
-      message = exception.message;
+      // Unhandled errors — always ERROR severity with stack trace
+      this.logger.error(
+        `[${method}] ${url} \u2192 500 INTERNAL_ERROR | Body: ${this.safeStringify(body)} | Error: ${exception.message}`,
+        exception.stack,
+      );
+    } else {
+      this.logger.error(
+        `[${method}] ${url} \u2192 500 UNKNOWN_ERROR | Exception: ${this.safeStringify(exception)}`,
+      );
     }
 
     response.status(status).json({
@@ -57,5 +89,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       429: 'TOO_MANY_REQUESTS',
     };
     return codeMap[status] || 'INTERNAL_ERROR';
+  }
+
+  /** Safely stringify — never throw from a logger. Redacts sensitive fields. */
+  private safeStringify(value: unknown): string {
+    try {
+      if (value && typeof value === 'object') {
+        const redacted = { ...(value as Record<string, unknown>) };
+        const sensitiveKeys = ['password', 'token', 'secret'];
+        for (const key of sensitiveKeys) {
+          if (key in redacted) redacted[key] = '***';
+        }
+        return JSON.stringify(redacted);
+      }
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
 }

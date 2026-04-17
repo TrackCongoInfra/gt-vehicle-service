@@ -5,9 +5,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { GcpLoggerService } from './common/helpers/gcp-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new GcpLoggerService();
+  const app = await NestFactory.create(AppModule, { logger });
 
   // Graceful shutdown — drain connections on SIGTERM/SIGINT
   app.enableShutdownHooks();
@@ -41,9 +43,6 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
     }),
   );
 
@@ -74,9 +73,9 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') ?? 3001;
   await app.listen(port);
 
-  console.log(`gt-vehicle-service running on http://localhost:${port}`);
+  logger.log(`gt-vehicle-service running on http://localhost:${port}`);
   if (configService.get<string>('NODE_ENV') !== 'production') {
-    console.log(`Swagger UI: http://localhost:${port}/api/docs`);
+    logger.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }
 
