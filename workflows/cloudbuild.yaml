@@ -1,0 +1,17 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/trackcongo/gt-vehicle-service:latest',
+        '-f',
+        'docker/Dockerfile',
+        '.',
+      ]
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/trackcongo/gt-vehicle-service:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
