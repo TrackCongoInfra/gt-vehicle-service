@@ -1,0 +1,151 @@
+name: Deploy to Cloud Run (DEV)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-dev" to confirm manual deploy'
+        required: true
+        default: ''
+
+concurrency:
+  group: deploy-dev-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: project-075b4b1a-eedf-4457-8af
+  REGION: us-central1
+  SERVICE: gt-vehicle-service-dev
+  IMAGE: us-central1-docker.pkg.dev/project-075b4b1a-eedf-4457-8af/trackcongo/gt-vehicle-service-dev
+
+jobs:
+  guard:
+    name: Manual-deploy guard
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require matching confirm input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-dev" ]; then
+            echo "::error::Manual deploys require typing 'deploy-dev' in the confirm input."
+            exit 1
+          fi
+
+  deploy:
+    name: Build, push, deploy (DEV)
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy-dev')
+    needs: [guard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: dev
+      url: https://gt-vehicle-service-dev-497337721698.us-central1.run.app
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+          provenance: false
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+          flags: |
+            --port=3001
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=2
+            --concurrency=80
+            --no-allow-unauthenticated
+            --vpc-connector=gt-connector
+            --vpc-egress=private-ranges-only
+            --ingress=all
+          env_vars: |
+            NODE_ENV=development
+            DB_HOST=10.128.0.3
+            DB_PORT=5432
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_DATABASE=trackcongo_db
+            DB_SSL=false
+            DB_LOGGING=true
+            DB_POOL_MAX=5
+            DB_POOL_IDLE_TIMEOUT_MS=30000
+            DB_POOL_CONNECTION_TIMEOUT_MS=5000
+            INTERNAL_GATEWAY_TOKEN=${{ secrets.INTERNAL_GATEWAY_TOKEN }}
+            RBAC_SERVICE_URL=https://gt-rbac-service-dev-497337721698.us-central1.run.app/api
+            RATE_LIMIT_WINDOW_MS=60000
+            RATE_LIMIT_MAX=1000
+            LOG_LEVEL=debug
+
+
+      - name: Smoke test (/api/v1/health)
+        run: |
+          TOKEN=$(gcloud auth print-identity-token)
+          URL="${{ steps.deploy.outputs.url }}/api/v1/health"
+          echo "Probing $URL"
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -s -o /tmp/body -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "X-Gateway-Token: ${{ secrets.INTERNAL_GATEWAY_TOKEN }}" \
+              -H "X-User-Id: 00000000-0000-0000-0000-000000000001" \
+              -H "X-Org-Id: 00000000-0000-4000-a000-000000000001" \
+              -H "X-Roles: system_admin" \
+              --max-time 10 "$URL" || true)
+            echo "Attempt $i → HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              cat /tmp/body
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Health check failed after 5 attempts"
+          cat /tmp/body || true
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Deploy summary (DEV)" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | \`${{ env.SERVICE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ env.IMAGE }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ steps.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
