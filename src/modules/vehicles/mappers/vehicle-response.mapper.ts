@@ -218,7 +218,7 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
     billingDetail: orgUser?.billingDetail ?? null,
 
     // ── Company (from organizations table) ───────────────────────
-    companyName: organization?.company ?? null,
+    companyName: organization?.orgName ?? null,
     organizationEmail: organization?.email ?? null,
     organizationPhone: organization?.phoneNumber ?? null,
 

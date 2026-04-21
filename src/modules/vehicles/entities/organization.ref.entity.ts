@@ -1,18 +1,16 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 /**
  * Read-only reference to `public.organizations`. Owned by gt-organization-service.
- * Note: the actual org id IS the table's `id` column — there is no separate
- * `org_id` column in this service's schema. `company` is the authoritative
- * organization display name (the legacy `client_name` column was dropped).
+ * Display name is now `org_name` (formerly `company` / `client_name`).
  */
 @Entity({ name: 'organizations', schema: 'public' })
 export class OrganizationRef {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  company: string | null;
+  @Column({ name: 'org_name', type: 'varchar', nullable: true })
+  orgName: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   email: string | null;
