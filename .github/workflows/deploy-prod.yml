@@ -21,22 +21,8 @@ env:
   IMAGE: us-central1-docker.pkg.dev/project-075b4b1a-eedf-4457-8af/trackcongo/gt-vehicle-service
 
 jobs:
-  guard:
-    name: Manual-deploy guard
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require matching confirm input
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "deploy-prod" ]; then
-            echo "::error::Manual deploys require typing 'deploy-prod' in the confirm input."
-            exit 1
-          fi
-
   deploy:
     name: Build, push, deploy (PROD)
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy-prod')
-    needs: [guard]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -47,6 +33,13 @@ jobs:
       id-token: write
 
     steps:
+      - name: Validate confirm input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-prod" ]; then
+            echo "::error::Manual deploys require typing 'deploy-prod' in the confirm input."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
