@@ -103,7 +103,7 @@ const labelOrRaw = (map: Record<string, string>, key: string | null | undefined)
  *   - Vehicle (existing row)                 — base fields + dates
  *   - DeviceRef (joined on current_device_id)— IMEI / SIM / ignition flags
  *   - OrganizationUserRef (user subscription)— start/due dates + autoRenewal
- *   - UserRef + OrganizationRef              — user block + companyName
+ *   - UserRef + OrganizationRef              — user block + orgName
  */
 export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, unknown> {
   const { vehicle, device, orgUser, user, organization } = row;
@@ -218,7 +218,7 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
     billingDetail: orgUser?.billingDetail ?? null,
 
     // ── Company (from organizations table) ───────────────────────
-    companyName: organization?.orgName ?? null,
+    orgName: organization?.orgName ?? null,
     organizationEmail: organization?.email ?? null,
     organizationPhone: organization?.phoneNumber ?? null,
 
