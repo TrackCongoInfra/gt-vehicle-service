@@ -53,9 +53,11 @@ async function bootstrap() {
       .setDescription(
         'Vehicle onboarding and lifecycle management microservice for the Global Tracking platform. ' +
           'Manages vehicle CRUD, document management, and asset registry. ' +
-          'Multi-org isolated via org_id. Accepts trusted headers from API Gateway.',
+          'Multi-org isolated via org_id. Accepts trusted headers from API Gateway.\n\n' +
+          '**v1.1.0 changes**: GET response field `companyName` has been renamed to `orgName` ' +
+          '(sourced from `public.organizations.org_name`). Clients consuming the old field must migrate.',
       )
-      .setVersion('1.0.0')
+      .setVersion('1.1.0')
       .addApiKey(
         { type: 'apiKey', in: 'header', name: 'X-Gateway-Token' },
         'GatewayToken',
