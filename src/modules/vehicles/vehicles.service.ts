@@ -390,6 +390,38 @@ export class VehiclesService {
       });
     }
 
+    // `entityId` + optional `assignedTo` — mirrors groups-service pattern.
+    //   VEHICLE     → match v.user_id        (assigned user)
+    //   TRANSPORTER → match v.transporter_id (transporter user)
+    //   (none)      → OR across user_id / transporter_id / organization_id
+    if (filter.entityId) {
+      const entityParam = { entityId: filter.entityId };
+      if (filter.assignedTo === 'VEHICLE') {
+        query.andWhere('v.user_id = :entityId', entityParam);
+      } else if (filter.assignedTo === 'TRANSPORTER') {
+        query.andWhere('v.transporter_id = :entityId', entityParam);
+      } else {
+        query.andWhere(
+          '(v.user_id = :entityId OR v.transporter_id = :entityId OR v.organization_id = :entityId)',
+          entityParam,
+        );
+      }
+    }
+
+    // `month` / `year` — filter by created_at components. Using EXTRACT so
+    // the optimiser can still use an idx on created_at via a functional
+    // predicate if one is added later.
+    if (filter.year !== undefined) {
+      query.andWhere('EXTRACT(YEAR FROM v.created_at) = :filterYear', {
+        filterYear: filter.year,
+      });
+    }
+    if (filter.month !== undefined) {
+      query.andWhere('EXTRACT(MONTH FROM v.created_at) = :filterMonth', {
+        filterMonth: filter.month,
+      });
+    }
+
     const total = await query.getCount();
     const vehicles = await query
       .orderBy('v.created_at', 'DESC')
