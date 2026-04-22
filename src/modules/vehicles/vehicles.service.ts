@@ -373,33 +373,19 @@ export class VehiclesService {
       );
     }
 
-    // `transporterId` — exact UUID match on the dedicated v.transporter_id
-    // column (partial btree index `idx_vehicles_transporter_id` covers this).
-    if (filter.transporterId) {
-      query.andWhere('v.transporter_id = :transporterIdFilter', {
-        transporterIdFilter: filter.transporterId,
-      });
-    }
-
-    // `orgId` — exact UUID match on vehicles.organization_id. In normal
-    // org-scoped calls this is redundant with the earlier orgId WHERE, but
-    // accepted so cross-org admin tooling can scope explicitly.
-    if (filter.orgId) {
-      query.andWhere('v.organization_id = :filterOrgId', {
-        filterOrgId: filter.orgId,
-      });
-    }
-
     // `entityId` + optional `assignedTo` — mirrors groups-service pattern.
     //   VEHICLE     → match v.user_id        (assigned user)
     //   TRANSPORTER → match v.transporter_id (transporter user)
-    //   (none)      → OR across user_id / transporter_id / organization_id
+    //   ORG         → match v.organization_id
+    //   (none)      → OR across all three columns
     if (filter.entityId) {
       const entityParam = { entityId: filter.entityId };
       if (filter.assignedTo === 'VEHICLE') {
         query.andWhere('v.user_id = :entityId', entityParam);
       } else if (filter.assignedTo === 'TRANSPORTER') {
         query.andWhere('v.transporter_id = :entityId', entityParam);
+      } else if (filter.assignedTo === 'ORG') {
+        query.andWhere('v.organization_id = :entityId', entityParam);
       } else {
         query.andWhere(
           '(v.user_id = :entityId OR v.transporter_id = :entityId OR v.organization_id = :entityId)',

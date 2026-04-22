@@ -30,6 +30,7 @@ const toLowerCaseValue = ({ value }: { value: unknown }) =>
 export enum VehicleAssignedTo {
   VEHICLE = 'VEHICLE',
   TRANSPORTER = 'TRANSPORTER',
+  ORG = 'ORG',
 }
 
 export class FilterVehicleDto extends PaginationDto {
@@ -68,34 +69,13 @@ export class FilterVehicleDto extends PaginationDto {
   ignitionState?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Filter by transporter UUID — exact match on `vehicles.transporter_id`. ' +
-      'Set the column per-vehicle via POST/PATCH (field `transporterId`).',
-    format: 'uuid',
-    example: '64813de9-ca32-485a-a15c-1c194de1efac',
-  })
-  @IsOptional()
-  @IsUUID()
-  transporterId?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Filter by organisation UUID — exact match on `vehicles.organization_id`. ' +
-      'Useful for cross-org admin tooling; in normal org-scoped calls this is redundant ' +
-      'because the API already filters to the caller\'s org.',
-    format: 'uuid',
-    example: 'dd8cf458-7b6f-4efc-a096-0680ad7995f3',
-  })
-  @IsOptional()
-  @IsUUID()
-  orgId?: string;
-
-  @ApiPropertyOptional({
     enum: VehicleAssignedTo,
     description:
-      'Narrows the `entityId` match target. `VEHICLE` ⇒ match v.user_id (assigned user), ' +
-      '`TRANSPORTER` ⇒ match v.transporter_id. Omitted ⇒ entityId matches either column ' +
-      'OR v.organization_id.',
+      'Narrows the `entityId` match target. ' +
+      '`VEHICLE` ⇒ match v.user_id (assigned user). ' +
+      '`TRANSPORTER` ⇒ match v.transporter_id. ' +
+      '`ORG` ⇒ match v.organization_id. ' +
+      'Omitted ⇒ entityId matches any of the three columns.',
   })
   @IsOptional()
   @IsEnum(VehicleAssignedTo)
@@ -104,7 +84,8 @@ export class FilterVehicleDto extends PaginationDto {
   @ApiPropertyOptional({
     description:
       'Return only vehicles that reference this UUID. By default matches against ' +
-      'user_id, transporter_id, or organization_id. Combine with `assignedTo` to narrow.',
+      'user_id, transporter_id, or organization_id. Use `assignedTo` to narrow to a ' +
+      'single column.',
     format: 'uuid',
     example: '64813de9-ca32-485a-a15c-1c194de1efac',
   })
