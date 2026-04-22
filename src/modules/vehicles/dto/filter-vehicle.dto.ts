@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
 
@@ -46,4 +46,27 @@ export class FilterVehicleDto extends PaginationDto {
   @IsOptional()
   @IsString()
   ignitionState?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by transporter — UUID of an org-admin user. Returns vehicles whose ' +
+      'assigned `user_id` equals this value AND that user has `is_org_admin = true`.',
+    format: 'uuid',
+    example: '64813de9-ca32-485a-a15c-1c194de1efac',
+  })
+  @IsOptional()
+  @IsUUID()
+  transporter?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by company name — substring ILIKE match on `organizations.org_name` ' +
+      '(the joined company record pointed at by `vehicles.organization_id`).',
+    maxLength: 100,
+    example: 'Congo',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  companyName?: string;
 }

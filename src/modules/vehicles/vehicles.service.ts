@@ -372,6 +372,36 @@ export class VehiclesService {
       );
     }
 
+    // `transporter` — UUID of an org-admin user. Exact match on v.user_id PLUS
+    // a constraint that the assigned user is actually flagged as org admin.
+    // We use an EXISTS subquery against public.users to keep the main query
+    // join-free when the filter is absent.
+    if (filter.transporter) {
+      query.andWhere('v.user_id = :transporterId', {
+        transporterId: filter.transporter,
+      });
+      query.andWhere(
+        `EXISTS (
+           SELECT 1 FROM public.users u
+           WHERE u.id = v.user_id
+             AND u.is_org_admin = TRUE
+             AND u.deleted_at IS NULL
+         )`,
+      );
+    }
+
+    // `companyName` — substring ILIKE on the joined organisation's org_name.
+    if (filter.companyName) {
+      query.andWhere(
+        `EXISTS (
+           SELECT 1 FROM public.organizations o
+           WHERE o.id = v.organization_id
+             AND o.org_name ILIKE :companyName
+         )`,
+        { companyName: `%${filter.companyName}%` },
+      );
+    }
+
     const total = await query.getCount();
     const vehicles = await query
       .orderBy('v.created_at', 'DESC')
