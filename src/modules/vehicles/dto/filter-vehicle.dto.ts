@@ -49,24 +49,24 @@ export class FilterVehicleDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter by transporter — UUID stored directly in the `vehicles.transporter_id` column. ' +
-      'Exact match; use the dedicated create/update endpoints to set this value per vehicle.',
+      'Filter by transporter UUID — exact match on `vehicles.transporter_id`. ' +
+      'Set the column per-vehicle via POST/PATCH (field `transporterId`).',
     format: 'uuid',
     example: '64813de9-ca32-485a-a15c-1c194de1efac',
   })
   @IsOptional()
   @IsUUID()
-  transporter?: string;
+  transporterId?: string;
 
   @ApiPropertyOptional({
     description:
-      'Filter by company name — substring ILIKE match on `organizations.org_name` ' +
-      '(the joined company record pointed at by `vehicles.organization_id`).',
-    maxLength: 100,
-    example: 'Congo',
+      'Filter by organisation UUID — exact match on `vehicles.organization_id`. ' +
+      'Useful for cross-org admin tooling; in normal org-scoped calls this is redundant ' +
+      'because the API already filters to the caller\'s org.',
+    format: 'uuid',
+    example: 'dd8cf458-7b6f-4efc-a096-0680ad7995f3',
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  companyName?: string;
+  @IsUUID()
+  orgId?: string;
 }

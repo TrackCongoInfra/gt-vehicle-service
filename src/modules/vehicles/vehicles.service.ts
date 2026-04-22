@@ -373,24 +373,21 @@ export class VehiclesService {
       );
     }
 
-    // `transporter` — exact UUID match on the dedicated v.transporter_id
+    // `transporterId` — exact UUID match on the dedicated v.transporter_id
     // column (partial btree index `idx_vehicles_transporter_id` covers this).
-    if (filter.transporter) {
-      query.andWhere('v.transporter_id = :transporterId', {
-        transporterId: filter.transporter,
+    if (filter.transporterId) {
+      query.andWhere('v.transporter_id = :transporterIdFilter', {
+        transporterIdFilter: filter.transporterId,
       });
     }
 
-    // `companyName` — substring ILIKE on the joined organisation's org_name.
-    if (filter.companyName) {
-      query.andWhere(
-        `EXISTS (
-           SELECT 1 FROM public.organizations o
-           WHERE o.id = v.organization_id
-             AND o.org_name ILIKE :companyName
-         )`,
-        { companyName: `%${filter.companyName}%` },
-      );
+    // `orgId` — exact UUID match on vehicles.organization_id. In normal
+    // org-scoped calls this is redundant with the earlier orgId WHERE, but
+    // accepted so cross-org admin tooling can scope explicitly.
+    if (filter.orgId) {
+      query.andWhere('v.organization_id = :filterOrgId', {
+        filterOrgId: filter.orgId,
+      });
     }
 
     const total = await query.getCount();
