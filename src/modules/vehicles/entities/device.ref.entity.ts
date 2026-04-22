@@ -56,8 +56,8 @@ export class DeviceRef {
   @Column({ type: 'boolean', default: false })
   assigned: boolean;
 
-  @Column({ type: 'boolean', default: true })
-  active: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
 
   @Column({ name: 'current_vehicle_id', type: 'uuid', nullable: true })
   currentVehicleId: string | null;
