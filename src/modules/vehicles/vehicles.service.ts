@@ -295,7 +295,12 @@ export class VehiclesService {
       where: { organizationId: orgId, userId },
     });
 
-    const billing = (existing?.billingDetail ?? {}) as Record<string, unknown>;
+    // Build a FRESH billing object via spread — never mutate the one
+    // TypeORM handed us (update() sometimes ignores jsonb fields whose
+    // reference hasn't changed, which is how `autoRenewal` silently
+    // failed to persist).
+    const existingBilling = (existing?.billingDetail ?? {}) as Record<string, unknown>;
+    const billing: Record<string, unknown> = { ...existingBilling };
     if (typeof dto.autoRenewal === 'boolean') {
       billing.autoRenewal = dto.autoRenewal;
     }
@@ -310,22 +315,19 @@ export class VehiclesService {
     };
 
     if (existing) {
-      // `billing_detail` is jsonb — TypeORM's QueryDeepPartialEntity type is
-      // overly strict about object types here, so we cast to `any`. The
-      // value is validated upstream.
-      const patch: Record<string, unknown> = { billingDetail: billing };
+      // Use save() rather than update() — save() reliably serialises jsonb,
+      // update() can silently drop jsonb patches when the field's internal
+      // reference is unchanged. Mutate the managed entity directly.
+      existing.billingDetail = billing;
       if (dto.subscriptionStart !== undefined) {
-        patch.subscriptionStartDate = toDateOnly(dto.subscriptionStart);
+        existing.subscriptionStartDate = toDateOnly(dto.subscriptionStart) as any;
       }
       if (dto.subscriptionDue !== undefined) {
-        patch.subscriptionDueDate = toDateOnly(dto.subscriptionDue);
+        existing.subscriptionDueDate = toDateOnly(dto.subscriptionDue) as any;
       }
-      await this.orgUserRepo.update(
-        { organizationId: orgId, userId },
-        patch as any,
-      );
+      await this.orgUserRepo.save(existing);
       this.logger.log(
-        `Subscription updated for org=${orgId} user=${userId}`,
+        `Subscription updated for org=${orgId} user=${userId} billing=${JSON.stringify(billing)}`,
       );
     } else {
       await this.orgUserRepo.insert({
@@ -334,14 +336,14 @@ export class VehiclesService {
         role: 'user',
         status: 'active',
         isPrimary: false,
-        subscriptionStartDate: toDateOnly(dto.subscriptionStart),
-        subscriptionDueDate: toDateOnly(dto.subscriptionDue),
+        subscriptionStartDate: toDateOnly(dto.subscriptionStart) as any,
+        subscriptionDueDate: toDateOnly(dto.subscriptionDue) as any,
         subscriptionExtendedDate: null,
         subscriptionOverwriteAllVehicles: false,
         billingDetail: billing as any,
       });
       this.logger.log(
-        `Subscription created for org=${orgId} user=${userId}`,
+        `Subscription created for org=${orgId} user=${userId} billing=${JSON.stringify(billing)}`,
       );
     }
   }
