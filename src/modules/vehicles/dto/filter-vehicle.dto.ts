@@ -1,14 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsInt,
   IsOptional,
   IsString,
   IsUUID,
-  Max,
+  Matches,
   MaxLength,
-  Min,
 } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
@@ -95,31 +93,16 @@ export class FilterVehicleDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter by the month component (1–12) of `vehicles.created_at`. Combine with ' +
-      '`year` to scope to a specific calendar month.',
-    minimum: 1,
-    maximum: 12,
-    example: 4,
+      'Filter by calendar month of `vehicles.created_at`. Format: `MM-yyyy` ' +
+      '(zero-padded month, 4-digit year). Example: `04-2026` returns vehicles ' +
+      'created in April 2026.',
+    example: '04-2026',
+    pattern: '^(0[1-9]|1[0-2])-(20\\d{2}|21\\d{2})$',
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(12)
-  month?: number;
-
-  @ApiPropertyOptional({
-    description:
-      'Filter by the year component of `vehicles.created_at` (>= 2000). Can be used ' +
-      'alone (whole-year filter) or together with `month`.',
-    minimum: 2000,
-    maximum: 2100,
-    example: 2026,
+  @IsString()
+  @Matches(/^(0[1-9]|1[0-2])-(20\d{2}|21\d{2})$/, {
+    message: 'monthYear must be in MM-yyyy format (e.g. 04-2026)',
   })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(2000)
-  @Max(2100)
-  year?: number;
+  monthYear?: string;
 }

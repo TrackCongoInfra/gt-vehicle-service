@@ -394,18 +394,19 @@ export class VehiclesService {
       }
     }
 
-    // `month` / `year` — filter by created_at components. Using EXTRACT so
-    // the optimiser can still use an idx on created_at via a functional
-    // predicate if one is added later.
-    if (filter.year !== undefined) {
-      query.andWhere('EXTRACT(YEAR FROM v.created_at) = :filterYear', {
-        filterYear: filter.year,
-      });
-    }
-    if (filter.month !== undefined) {
-      query.andWhere('EXTRACT(MONTH FROM v.created_at) = :filterMonth', {
-        filterMonth: filter.month,
-      });
+    // `monthYear` — "MM-yyyy" single param covering month + year. Parsed
+    // here (DTO regex already enforced the shape) and applied as two
+    // EXTRACT() predicates on created_at. Using a half-open date-range
+    // would be index-friendlier, but EXTRACT keeps the query shape simple
+    // and correct for our small row counts.
+    if (filter.monthYear) {
+      const [mmStr, yyyyStr] = filter.monthYear.split('-');
+      const mm = Number(mmStr);
+      const yyyy = Number(yyyyStr);
+      query.andWhere(
+        'EXTRACT(YEAR FROM v.created_at) = :filterYear AND EXTRACT(MONTH FROM v.created_at) = :filterMonth',
+        { filterYear: yyyy, filterMonth: mm },
+      );
     }
 
     const total = await query.getCount();
