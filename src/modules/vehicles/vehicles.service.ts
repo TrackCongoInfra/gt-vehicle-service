@@ -479,6 +479,9 @@ export class VehiclesService {
           .filter((x): x is string => Boolean(x)),
       ),
     );
+    // userId still exists internally (subscription upserts key off it) but
+    // the response only surfaces the transporter. Look up both sets of IDs
+    // so one users query covers every ref we need.
     const userIds = Array.from(
       new Set(
         vehicles
@@ -486,6 +489,14 @@ export class VehiclesService {
           .filter((x): x is string => Boolean(x)),
       ),
     );
+    const transporterIds = Array.from(
+      new Set(
+        vehicles
+          .map((v) => v.transporterId)
+          .filter((x): x is string => Boolean(x)),
+      ),
+    );
+    const allUserIds = Array.from(new Set([...userIds, ...transporterIds]));
 
     const [devices, orgUsers, users, organizations] = await Promise.all([
       deviceIds.length
@@ -502,9 +513,9 @@ export class VehiclesService {
             },
           })
         : Promise.resolve<OrganizationUserRef[]>([]),
-      userIds.length
+      allUserIds.length
         ? this.userRepo.find({
-            where: { id: In(userIds), deletedAt: IsNull() },
+            where: { id: In(allUserIds), deletedAt: IsNull() },
           })
         : Promise.resolve<UserRef[]>([]),
       // organizations.id IS the org id — there's no separate org_id column
@@ -524,7 +535,9 @@ export class VehiclesService {
       orgUser: vehicle.userId
         ? (orgUsersByUserId.get(vehicle.userId) ?? null)
         : null,
-      user: vehicle.userId ? (usersById.get(vehicle.userId) ?? null) : null,
+      transporter: vehicle.transporterId
+        ? (usersById.get(vehicle.transporterId) ?? null)
+        : null,
       organization,
     }));
   }

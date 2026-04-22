@@ -9,20 +9,9 @@ export interface EnrichedVehicleRow {
   vehicle: Vehicle;
   device: DeviceRef | null;
   orgUser: OrganizationUserRef | null;
-  user: UserRef | null;
+  /** User record referenced by vehicle.transporter_id. */
+  transporter: UserRef | null;
   organization: OrganizationRef | null;
-}
-
-/** User details block surfaced on every vehicle when a user is assigned. */
-export interface AssignedUserDto {
-  id: string;
-  name: string;
-  email: string;
-  username: string | null;
-  phone: string | null;
-  avatarUrl: string | null;
-  isActive: boolean;
-  isOrgAdmin: boolean;
 }
 
 /**
@@ -146,7 +135,7 @@ const labelOrRaw = (map: Record<string, string>, key: string | null | undefined)
  *   - UserRef + OrganizationRef              — user block + orgName
  */
 export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, unknown> {
-  const { vehicle, device, orgUser, user, organization } = row;
+  const { vehicle, device, orgUser, transporter, organization } = row;
 
   const assigned = Boolean(vehicle.currentDeviceId || device?.assigned);
 
@@ -160,18 +149,7 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
         ? (billing.auto_renewal as boolean)
         : false;
 
-  const assignedUser: AssignedUserDto | null = user
-    ? {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        phone: user.phoneNumber,
-        avatarUrl: user.avatarUrl,
-        isActive: user.isActive,
-        isOrgAdmin: user.isOrgAdmin,
-      }
-    : null;
+  const transporterName = transporter?.name?.trim() || transporter?.username || null;
 
   return {
     // ── Core vehicle identity ────────────────────────────────────
@@ -261,12 +239,9 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
     organizationEmail: organization?.email ?? null,
     organizationPhone: organization?.phoneNumber ?? null,
 
-    // ── Assigned user (from users table via vehicle.user_id) ─────
-    userId: vehicle.userId,
-    assignedUser,
-
-    // ── Transporter reference (direct column on vehicle row) ─────
+    // ── Transporter (direct column + resolved name from users table) ─
     transporterId: vehicle.transporterId ?? null,
+    transporterName,
 
     // ── Timestamps ───────────────────────────────────────────────
     createdAt: vehicle.createdAt,
