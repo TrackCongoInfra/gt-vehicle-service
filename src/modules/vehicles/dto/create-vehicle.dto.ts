@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -148,7 +149,7 @@ export class CreateVehicleDto {
   @IsOptional()
   @Transform(({ value }) => {
     if (typeof value !== 'string') return value;
-    return value.trim().toLowerCase().replace(/\s+/g, '_');
+    return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
   })
   @IsEnum(VehicleType)
   vehicleType?: VehicleType;
@@ -262,10 +263,10 @@ export class CreateVehicleDto {
   @Max(300)
   overspeed?: number;
 
-  @ApiPropertyOptional({ example: 5, description: 'Idle threshold in minutes' })
+  @ApiPropertyOptional({ example: 5, description: 'Idle threshold in minutes (0 allowed to disable)' })
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
   @Max(60)
   idleThresholdMin?: number;
 
@@ -359,6 +360,16 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsBoolean()
   lock?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'unlock',
+    description: 'Lock status string — accepts "unlock" or "locked". Takes precedence over `lock` boolean if both sent.',
+    enum: ['unlock', 'locked'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['unlock', 'locked'])
+  lockStatus?: string;
 
   // ── Custom fields (freeform jsonb) ────────────────────────────────
 

@@ -139,8 +139,10 @@ export class VehiclesService {
 
     // `lock: true` → locked, else keep unlock default. Applied only when
     // explicitly provided so legacy callers aren't affected.
+    // Prefer explicit lockStatus string; fall back to the boolean `lock` alias.
     const lockStatus =
-      typeof dto.lock === 'boolean' ? (dto.lock ? 'locked' : 'unlock') : undefined;
+      dto.lockStatus ??
+      (typeof dto.lock === 'boolean' ? (dto.lock ? 'locked' : 'unlock') : undefined);
 
     return {
       id: uuidv4(),
@@ -674,7 +676,10 @@ export class VehiclesService {
       dto.parkingViolationAlarm ?? dto.parkAlarmOnIgnitionOn;
     setIf('parkingViolationAlarm', parkingViolationAlarm);
 
-    if (typeof dto.lock === 'boolean') {
+    // Prefer explicit lockStatus string; fall back to the boolean `lock` alias.
+    if (dto.lockStatus !== undefined) {
+      vehicle.lockStatus = dto.lockStatus;
+    } else if (typeof dto.lock === 'boolean') {
       vehicle.lockStatus = dto.lock ? 'locked' : 'unlock';
     }
 
