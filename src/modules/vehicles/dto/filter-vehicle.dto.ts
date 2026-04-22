@@ -49,8 +49,8 @@ export class FilterVehicleDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description:
-      'Filter by transporter — UUID of an org-admin user. Returns vehicles whose ' +
-      'assigned `user_id` equals this value AND that user has `is_org_admin = true`.',
+      'Filter by transporter — UUID stored directly in the `vehicles.transporter_id` column. ' +
+      'Exact match; use the dedicated create/update endpoints to set this value per vehicle.',
     format: 'uuid',
     example: '64813de9-ca32-485a-a15c-1c194de1efac',
   })

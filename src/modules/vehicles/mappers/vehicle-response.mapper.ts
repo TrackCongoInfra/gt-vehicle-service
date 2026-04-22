@@ -226,6 +226,9 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
     userId: vehicle.userId,
     assignedUser,
 
+    // ── Transporter reference (direct column on vehicle row) ─────
+    transporterId: vehicle.transporterId ?? null,
+
     // ── Timestamps ───────────────────────────────────────────────
     createdAt: vehicle.createdAt,
     updatedAt: vehicle.updatedAt,

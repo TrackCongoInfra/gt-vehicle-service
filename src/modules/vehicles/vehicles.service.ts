@@ -148,6 +148,7 @@ export class VehiclesService {
 
       vehicleNo: dto.vehicleNo,
       transporter: dto.transporter ?? null,
+      transporterId: dto.transporterId ?? null,
       userId: resolved.resolvedUserId,
       currentDeviceId: resolved.resolvedDeviceId,
 
@@ -372,22 +373,12 @@ export class VehiclesService {
       );
     }
 
-    // `transporter` — UUID of an org-admin user. Exact match on v.user_id PLUS
-    // a constraint that the assigned user is actually flagged as org admin.
-    // We use an EXISTS subquery against public.users to keep the main query
-    // join-free when the filter is absent.
+    // `transporter` — exact UUID match on the dedicated v.transporter_id
+    // column (partial btree index `idx_vehicles_transporter_id` covers this).
     if (filter.transporter) {
-      query.andWhere('v.user_id = :transporterId', {
+      query.andWhere('v.transporter_id = :transporterId', {
         transporterId: filter.transporter,
       });
-      query.andWhere(
-        `EXISTS (
-           SELECT 1 FROM public.users u
-           WHERE u.id = v.user_id
-             AND u.is_org_admin = TRUE
-             AND u.deleted_at IS NULL
-         )`,
-      );
     }
 
     // `companyName` — substring ILIKE on the joined organisation's org_name.
@@ -608,6 +599,8 @@ export class VehiclesService {
     if (dto.vehicleNo !== undefined) vehicle.vehicleNo = dto.vehicleNo;
     if (dto.transporter !== undefined)
       vehicle.transporter = dto.transporter ?? null;
+    if (dto.transporterId !== undefined)
+      vehicle.transporterId = dto.transporterId ?? null;
     if (dto.attachedCoin !== undefined)
       vehicle.attachedCoin = dto.attachedCoin ?? null;
 

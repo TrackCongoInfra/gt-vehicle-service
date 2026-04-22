@@ -37,6 +37,13 @@ export class Vehicle extends BaseOrgEntity {
   @Column({ type: 'uuid', name: 'user_id', nullable: true })
   userId: string | null;
 
+  // Dedicated transporter reference — UUID of the user acting as the
+  // transporter for this vehicle. Independent of user_id (the assigned
+  // user) so a vehicle can be assigned to one user but transported by
+  // another. Filtered via ?transporter= on GET /vehicles.
+  @Column({ type: 'uuid', name: 'transporter_id', nullable: true })
+  transporterId: string | null;
+
   @Column({ type: 'varchar', name: 'v_type', default: 'other' })
   vType: string;
 

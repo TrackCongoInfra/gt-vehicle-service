@@ -82,6 +82,18 @@ export class CreateVehicleDto {
   transporterUsername?: string;
 
   @ApiPropertyOptional({
+    example: '64813de9-ca32-485a-a15c-1c194de1efac',
+    description:
+      'Direct UUID of the transporter user — stored as vehicles.transporter_id. ' +
+      'Independent of the assigned user (user_id); a vehicle may be assigned to ' +
+      'one user but transported by another.',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  transporterId?: string;
+
+  @ApiPropertyOptional({
     example: 'bL1gYhJ (11/05/2026)',
     description: 'Attached coin label (stored verbatim)',
   })
