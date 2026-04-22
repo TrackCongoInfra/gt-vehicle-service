@@ -50,7 +50,7 @@ export class FilterVehicleDto extends PaginationDto {
   @IsEnum(VehicleType)
   vType?: VehicleType;
 
-  @ApiPropertyOptional({ description: 'Search by vehicle number, owner name, owned by, vehicle brand, model, vehicle body, alias, or transporter' })
+  @ApiPropertyOptional({ description: 'Search by vehicle number, owner name, owned by, vehicle brand, model, vehicle body, or alias' })
   @IsOptional()
   @IsString()
   @MaxLength(100)

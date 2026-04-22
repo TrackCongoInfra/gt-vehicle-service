@@ -377,8 +377,12 @@ export class VehiclesService {
     }
 
     if (filter.search) {
+      // `v.transporter` (freeform text column) dropped from the search
+      // clause — the field is no longer accepted on POST/PATCH, so
+      // newer rows never populate it. Legacy data remains accessible
+      // via direct SQL if anyone still needs it.
       query.andWhere(
-        '(v.vehicle_no ILIKE :search OR v.owner_name ILIKE :search OR v.owned_by ILIKE :search OR v.make ILIKE :search OR v.model ILIKE :search OR v.vehicle_body ILIKE :search OR v.alias ILIKE :search OR v.transporter ILIKE :search)',
+        '(v.vehicle_no ILIKE :search OR v.owner_name ILIKE :search OR v.owned_by ILIKE :search OR v.make ILIKE :search OR v.model ILIKE :search OR v.vehicle_body ILIKE :search OR v.alias ILIKE :search)',
         { search: `%${filter.search}%` },
       );
     }
