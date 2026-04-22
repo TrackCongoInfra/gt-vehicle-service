@@ -149,7 +149,6 @@ export class VehiclesService {
       orgId,
 
       vehicleNo: dto.vehicleNo,
-      transporter: dto.transporter ?? null,
       transporterId: dto.transporterId ?? null,
       userId: resolved.resolvedUserId,
       currentDeviceId: resolved.resolvedDeviceId,
@@ -615,8 +614,6 @@ export class VehiclesService {
     };
 
     if (dto.vehicleNo !== undefined) vehicle.vehicleNo = dto.vehicleNo;
-    if (dto.transporter !== undefined)
-      vehicle.transporter = dto.transporter ?? null;
     if (dto.transporterId !== undefined)
       vehicle.transporterId = dto.transporterId ?? null;
     if (dto.attachedCoin !== undefined)

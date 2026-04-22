@@ -179,7 +179,6 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
     orgId: vehicle.orgId,
     vehicleNo: vehicle.vehicleNo,
     alias: vehicle.alias,
-    transporter: vehicle.transporter,
     make: vehicle.make,
     model: vehicle.model,
     year: vehicle.year,

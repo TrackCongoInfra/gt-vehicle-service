@@ -51,12 +51,6 @@ export class CreateVehicleDto {
   @MaxLength(30)
   vehicleNo: string;
 
-  @ApiPropertyOptional({ example: 'DHL Logistics', description: 'Transport company name (freeform)' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  transporter?: string;
-
   // ── Cross-entity lookups ──────────────────────────────────────────
 
   @ApiPropertyOptional({
