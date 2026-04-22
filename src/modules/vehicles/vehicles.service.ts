@@ -77,8 +77,11 @@ export class VehiclesService {
         await this.linkDeviceToVehicle(resolvedDeviceId, saved.id);
       }
 
-      if (resolvedUserId) {
-        await this.upsertSubscription(orgId, resolvedUserId, dto);
+      // Use saved.userId (which is now populated from either the legacy
+      // transporterUsername flow or the direct transporterId field) so
+      // the subscription is written for transporterId callers too.
+      if (saved.userId) {
+        await this.upsertSubscription(orgId, saved.userId, dto);
       }
     } catch (err) {
       // Don't fail the vehicle create — log and keep going. Operators can
