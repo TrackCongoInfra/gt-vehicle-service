@@ -150,7 +150,11 @@ export class VehiclesService {
 
       vehicleNo: dto.vehicleNo,
       transporterId: dto.transporterId ?? null,
-      userId: resolved.resolvedUserId,
+      // Keep user_id in sync with transporter_id so the subscription
+      // upsert path (which keys off vehicle.user_id) has a real user to
+      // anchor on. If the caller also used the legacy transporterUsername
+      // flow, that wins (it was resolved against org membership).
+      userId: resolved.resolvedUserId ?? dto.transporterId ?? null,
       currentDeviceId: resolved.resolvedDeviceId,
 
       ...(vType !== undefined && { vType }),
@@ -627,8 +631,11 @@ export class VehiclesService {
     };
 
     if (dto.vehicleNo !== undefined) vehicle.vehicleNo = dto.vehicleNo;
-    if (dto.transporterId !== undefined)
+    if (dto.transporterId !== undefined) {
       vehicle.transporterId = dto.transporterId ?? null;
+      // Keep user_id aligned — subscription upserts key off user_id.
+      vehicle.userId = dto.transporterId ?? null;
+    }
     if (dto.attachedCoin !== undefined)
       vehicle.attachedCoin = dto.attachedCoin ?? null;
 
