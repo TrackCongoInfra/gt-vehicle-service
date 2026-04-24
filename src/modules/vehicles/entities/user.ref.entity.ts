@@ -29,9 +29,6 @@ export class UserRef {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ name: 'is_org_admin', type: 'boolean', default: false })
-  isOrgAdmin: boolean;
-
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
 }

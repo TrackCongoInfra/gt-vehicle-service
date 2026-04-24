@@ -24,7 +24,7 @@
     "seed": "ts-node scripts/seed.ts"
   },
   "dependencies": {
-    "@globaltracking/auth-middleware": "^2.0.0",
+    "@globaltracking/auth-middleware": "^2.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
