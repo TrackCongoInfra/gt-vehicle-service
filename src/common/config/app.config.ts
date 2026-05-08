@@ -35,4 +35,8 @@ export const validationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('debug', 'info', 'warn', 'error')
     .default('info'),
+
+  // GCS — vehicle document file storage
+  GCS_BUCKET_VEHICLE_DOCUMENTS: Joi.string().default('gt-vehicle-document'),
+  VEHICLE_DOCUMENT_MAX_SIZE_MB: Joi.number().min(1).max(100).default(10),
 });

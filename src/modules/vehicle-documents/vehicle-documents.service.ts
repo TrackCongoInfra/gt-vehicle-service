@@ -11,6 +11,7 @@ import { CreateVehicleDocumentDto } from './dto/create-vehicle-document.dto';
 import { UpdateVehicleDocumentDto } from './dto/update-vehicle-document.dto';
 import { AuditLog } from '../../shared/entities/audit-log.entity';
 import { VehiclesService } from '../vehicles/vehicles.service';
+import { VehicleDocumentsStorage } from './vehicle-documents.storage';
 
 @Injectable()
 export class VehicleDocumentsService {
@@ -22,6 +23,7 @@ export class VehicleDocumentsService {
     @InjectRepository(AuditLog)
     private readonly auditLogRepo: Repository<AuditLog>,
     private readonly vehiclesService: VehiclesService,
+    private readonly storage: VehicleDocumentsStorage,
   ) {}
 
   async create(
@@ -30,22 +32,57 @@ export class VehicleDocumentsService {
     dto: CreateVehicleDocumentDto,
     userId: string,
     ipAddress?: string,
+    file?: Express.Multer.File,
   ): Promise<VehicleDocument> {
     // Verify vehicle exists and belongs to org
     await this.vehiclesService.findOne(orgId, vehicleId);
 
+    const docId = uuidv4();
+
+    // If a file came in, upload it first so the saved row points at a real
+    // object. The uploaded URL overrides any `fileUrl` field on the body.
+    let resolvedFileUrl: string | null | undefined = dto.fileUrl ?? null;
+    if (file) {
+      resolvedFileUrl = await this.storage.upload(orgId, vehicleId, docId, file);
+    }
+
     const doc = this.docRepo.create({
-      id: uuidv4(),
+      id: docId,
       vehicleId,
       organizationId: orgId,
-      ...dto,
+      docType: dto.docType,
+      docNumber: dto.docNumber ?? null,
+      issuedDate: dto.issuedDate ? (dto.issuedDate as unknown as Date) : null,
+      expiryDate: dto.expiryDate ? (dto.expiryDate as unknown as Date) : null,
+      fileUrl: resolvedFileUrl ?? null,
     });
 
-    const saved = await this.docRepo.save(doc);
+    let saved: VehicleDocument;
+    try {
+      saved = await this.docRepo.save(doc);
+    } catch (err) {
+      // Roll back the uploaded object so we don't leave orphans in GCS
+      if (file && resolvedFileUrl) {
+        await this.storage.deleteByUrl(resolvedFileUrl);
+      }
+      throw err;
+    }
 
-    this.logger.log(`Document created: ${saved.id} type=${dto.docType} vehicle=${vehicleId}`);
+    this.logger.log(
+      `Document created: ${saved.id} type=${dto.docType} vehicle=${vehicleId}` +
+        (file ? ` file=${file.originalname} size=${file.size}B` : ''),
+    );
 
-    await this.logAudit(orgId, userId, 'vdoc.created', 'vehicle_document', saved.id, null, saved, ipAddress);
+    await this.logAudit(
+      orgId,
+      userId,
+      'vdoc.created',
+      'vehicle_document',
+      saved.id,
+      null,
+      saved,
+      ipAddress,
+    );
 
     return saved;
   }

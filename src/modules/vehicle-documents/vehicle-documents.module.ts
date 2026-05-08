@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { VehicleDocument } from './entities/vehicle-document.entity';
 import { VehicleDocumentsController } from './vehicle-documents.controller';
 import { VehicleDocumentsService } from './vehicle-documents.service';
+import { VehicleDocumentsStorage } from './vehicle-documents.storage';
 import { AuditLog } from '../../shared/entities/audit-log.entity';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 
@@ -12,7 +13,7 @@ import { VehiclesModule } from '../vehicles/vehicles.module';
     VehiclesModule,
   ],
   controllers: [VehicleDocumentsController],
-  providers: [VehicleDocumentsService],
+  providers: [VehicleDocumentsService, VehicleDocumentsStorage],
   exports: [VehicleDocumentsService],
 })
 export class VehicleDocumentsModule {}

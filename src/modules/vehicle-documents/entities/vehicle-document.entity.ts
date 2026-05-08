@@ -1,7 +1,16 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Vehicle } from '../../vehicles/entities/vehicle.entity';
 
-@Entity('vehicle_documents')
+@Entity({ name: 'vehicle_documents', schema: 'public' })
 export class VehicleDocument {
   @PrimaryColumn('uuid')
   id: string;
@@ -17,19 +26,22 @@ export class VehicleDocument {
   docType: string;
 
   @Column({ type: 'varchar', length: 100, name: 'doc_number', nullable: true })
-  docNumber: string;
+  docNumber: string | null;
 
   @Column({ type: 'date', name: 'issued_date', nullable: true })
-  issuedDate: Date;
+  issuedDate: Date | null;
 
   @Column({ type: 'date', name: 'expiry_date', nullable: true })
-  expiryDate: Date;
+  expiryDate: Date | null;
 
   @Column({ type: 'text', name: 'file_url', nullable: true })
-  fileUrl: string;
+  fileUrl: string | null;
 
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
+  updatedAt: Date;
 
   @ManyToOne(() => Vehicle)
   @JoinColumn({ name: 'vehicle_id' })
