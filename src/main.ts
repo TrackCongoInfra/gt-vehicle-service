@@ -3,7 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { json, urlencoded } from 'express';
+import { json, text, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { GcpLoggerService } from './common/helpers/gcp-logger.service';
 
@@ -24,6 +24,8 @@ async function bootstrap() {
   // Request body size limits
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: true, limit: '1mb' }));
+  // CSV bulk-upload bodies — parsed as raw text. 5mb covers ~500 vehicles.
+  app.use(text({ type: ['text/csv', 'application/csv'], limit: '5mb' }));
 
   // CORS — allow all origins in dev, restrict in production via CORS_ORIGINS
   const corsOrigins = configService.get<string>('CORS_ORIGINS');

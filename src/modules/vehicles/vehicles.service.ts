@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -349,6 +350,48 @@ export class VehiclesService {
         `Subscription created for org=${orgId} user=${userId} billing=${JSON.stringify(billing)}`,
       );
     }
+  }
+
+  async bulkCreate(
+    orgId: string,
+    items: CreateVehicleDto[],
+    userId: string,
+    ipAddress?: string,
+  ): Promise<{
+    total: number;
+    succeeded: number;
+    failed: number;
+    results: Array<{
+      index: number;
+      success: boolean;
+      data?: Record<string, unknown>;
+      error?: string;
+      statusCode?: number;
+    }>;
+  }> {
+    const results: Array<{
+      index: number;
+      success: boolean;
+      data?: Record<string, unknown>;
+      error?: string;
+      statusCode?: number;
+    }> = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const data = await this.create(orgId, items[i], userId, ipAddress);
+        results.push({ index: i, success: true, data });
+        succeeded++;
+      } catch (err) {
+        const { message, statusCode } = extractRowError(err);
+        results.push({ index: i, success: false, error: message, statusCode });
+        failed++;
+      }
+    }
+
+    return { total: items.length, succeeded, failed, results };
   }
 
   async findAll(
@@ -777,4 +820,24 @@ export class VehiclesService {
       }
     }
   }
+}
+
+function extractRowError(err: unknown): { message: string; statusCode: number } {
+  if (err instanceof HttpException) {
+    const res = err.getResponse();
+    let message: string;
+    if (typeof res === 'string') {
+      message = res;
+    } else if (res && typeof res === 'object' && 'message' in res) {
+      const m = (res as { message: unknown }).message;
+      message = Array.isArray(m) ? m.join('; ') : String(m);
+    } else {
+      message = err.message;
+    }
+    return { message, statusCode: err.getStatus() };
+  }
+  return {
+    message: err instanceof Error ? err.message : 'Unknown error',
+    statusCode: 500,
+  };
 }

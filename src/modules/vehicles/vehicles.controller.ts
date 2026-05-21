@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -11,19 +13,37 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBody,
+  ApiConsumes,
+  ApiExtraModels,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
+import { validate, ValidationError } from 'class-validator';
+import type { Request } from 'express';
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { FilterVehicleDto } from './dto/filter-vehicle.dto';
+import {
+  BulkCreateVehiclesDto,
+  BulkCreateVehiclesResponseDto,
+} from './dto/bulk-create-vehicle.dto';
+import { parseVehiclesCsv } from './dto/csv-to-vehicles.util';
 import { RequirePermissions, CurrentUser, CurrentOrg } from '@globaltracking/auth-middleware/nestjs';
 
 @ApiTags('Vehicles')
+@ApiExtraModels(CreateVehicleDto, BulkCreateVehiclesDto)
 @Controller('vehicles')
 export class VehiclesController {
   constructor(private readonly vehiclesService: VehiclesService) {}
@@ -40,6 +60,105 @@ export class VehiclesController {
     @Body() dto: CreateVehicleDto,
   ) {
     return this.vehiclesService.create(orgId, dto, userId, ip);
+  }
+
+  @Post('bulk/:orgId')
+  @RequirePermissions('vehicles:create')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Bulk-create vehicles for an org (JSON, raw CSV, or file upload — partial success)',
+    description:
+      'Create up to 500 vehicles in one request for the org named in the path. ' +
+      'Path orgId must match the caller\'s authenticated org (system admins may target any org). ' +
+      'Accepts `{ items: [...] }` JSON, raw text/csv body, OR multipart/form-data with a `file` field. ' +
+      'Each item is validated and inserted independently — a failure on one row ' +
+      'does NOT roll back the others. Response includes per-row success/error with the original 0-based index.',
+  })
+  @ApiParam({ name: 'orgId', type: 'string', format: 'uuid' })
+  @ApiConsumes('application/json', 'text/csv', 'multipart/form-data')
+  @ApiBody({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(BulkCreateVehiclesDto) },
+        { type: 'string', description: 'Raw CSV body when Content-Type is text/csv' },
+        {
+          type: 'object',
+          description: 'Multipart form with a `file` field carrying the .csv',
+          properties: { file: { type: 'string', format: 'binary' } },
+          required: ['file'],
+        },
+      ],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Bulk insert completed. Inspect `results` for per-row status.',
+    type: BulkCreateVehiclesResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'DTO validation failed (e.g. > 500 items, malformed payload).' })
+  @ApiResponse({ status: 403, description: 'Path orgId does not match caller\'s org' })
+  async bulkCreate(
+    @Param('orgId', ParseUUIDPipe) pathOrgId: string,
+    @CurrentOrg() currentOrgId: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('isSystemAdmin') callerIsSystemAdmin: boolean | undefined,
+    @Ip() ip: string,
+    @Body() body: any,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: Request,
+  ) {
+    if (pathOrgId !== currentOrgId && callerIsSystemAdmin !== true) {
+      throw new ForbiddenException(
+        `Path orgId "${pathOrgId}" does not match your authenticated org`,
+      );
+    }
+
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    const isCsv =
+      contentType.startsWith('text/csv') || contentType.startsWith('application/csv');
+    const isMultipart = contentType.startsWith('multipart/form-data');
+
+    let dto: BulkCreateVehiclesDto;
+    if (isMultipart) {
+      if (!file) {
+        throw new BadRequestException(
+          'multipart/form-data upload requires a `file` field carrying the .csv',
+        );
+      }
+      const csvText = file.buffer.toString('utf8');
+      dto = await this.validateBody(BulkCreateVehiclesDto, parseVehiclesCsv(csvText));
+    } else if (isCsv) {
+      if (typeof body !== 'string') {
+        throw new BadRequestException(
+          'CSV upload requires Content-Type: text/csv with a raw text body',
+        );
+      }
+      dto = await this.validateBody(BulkCreateVehiclesDto, parseVehiclesCsv(body));
+    } else {
+      dto = await this.validateBody(BulkCreateVehiclesDto, body);
+    }
+
+    return this.vehiclesService.bulkCreate(pathOrgId, dto.items, userId, ip);
+  }
+
+  private async validateBody<T extends object>(
+    cls: new () => T,
+    body: unknown,
+  ): Promise<T> {
+    const dto = plainToInstance(cls, body, { enableImplicitConversion: true });
+    const errors = await validate(dto as object, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (errors.length > 0) {
+      throw new BadRequestException(flattenValidationErrors(errors));
+    }
+    return dto;
   }
 
   @Get()
@@ -104,4 +223,21 @@ export class VehiclesController {
   ) {
     return this.vehiclesService.remove(orgId, id, userId, ip);
   }
+}
+
+function flattenValidationErrors(errors: ValidationError[]): string[] {
+  const out: string[] = [];
+  const walk = (errs: ValidationError[], prefix: string) => {
+    for (const err of errs) {
+      const path = prefix ? `${prefix}.${err.property}` : err.property;
+      if (err.constraints) {
+        for (const msg of Object.values(err.constraints)) {
+          out.push(msg.startsWith(err.property) ? `${prefix ? prefix + '.' : ''}${msg}` : `${path} ${msg}`);
+        }
+      }
+      if (err.children?.length) walk(err.children, path);
+    }
+  };
+  walk(errors, '');
+  return out;
 }
