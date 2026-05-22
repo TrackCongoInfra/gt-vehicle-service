@@ -35,7 +35,7 @@ async function bootstrap() {
       : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders:
-      'Content-Type,Authorization,X-Gateway-Token,X-Apigateway-Api-Userinfo',
+      'Content-Type,Authorization,X-Gateway-Token,X-Apigateway-Api-Userinfo,X-Acting-On-Org',
     credentials: true,
   });
 
