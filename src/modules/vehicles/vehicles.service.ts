@@ -764,11 +764,35 @@ export class VehiclesService {
   ): Promise<void> {
     const vehicle = await this.findRawVehicle(orgId, id);
 
-    // Soft delete
+    // If a device is linked to this vehicle, unlink it before the soft delete
+    // so the device row doesn't keep dangling assigned=true / current_vehicle_id
+    // pointing at a tombstoned vehicle.
+    const previousDeviceId = vehicle.currentDeviceId;
+    if (previousDeviceId) {
+      await this.deviceRepo.update(
+        { id: previousDeviceId },
+        { currentVehicleId: null, assigned: false },
+      );
+      vehicle.currentDeviceId = null;
+    }
+
+    // Soft delete the vehicle
     vehicle.deletedAt = new Date();
     await this.vehicleRepo.save(vehicle);
 
     await this.logAudit(orgId, userId, 'vehicle.deleted', 'vehicle', id, vehicle, null, ipAddress);
+    if (previousDeviceId) {
+      await this.logAudit(
+        orgId,
+        userId,
+        'device.unassigned_from_deleted_vehicle',
+        'device',
+        previousDeviceId,
+        { vehicleId: id },
+        null,
+        ipAddress,
+      );
+    }
   }
 
   /**
