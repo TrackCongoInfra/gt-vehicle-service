@@ -113,7 +113,7 @@ export class VehiclesService {
 
     // Return the same enriched shape as GET so the UI can re-render
     // without a follow-up GET call.
-    const [enriched] = await this.enrichVehicles(orgId, [saved]);
+    const [enriched] = await this.enrichVehicles([saved]);
     return mapVehicleToResponse(enriched);
   }
 
@@ -397,11 +397,23 @@ export class VehiclesService {
   async findAll(
     orgId: string,
     filter: FilterVehicleDto,
+    isSystemAdmin = false,
   ): Promise<{ data: Record<string, unknown>[]; meta: any }> {
     const query = this.vehicleRepo
       .createQueryBuilder('v')
-      .where('v.organization_id = :orgId', { orgId })
-      .andWhere('v.deleted_at IS NULL');
+      .where('v.deleted_at IS NULL');
+
+    // Org scoping. System-admins may target multiple orgs via `orgIds`.
+    // Everyone else (and any request without orgIds) is locked to their
+    // single authenticated org — orgIds from a non-admin is ignored, never
+    // a cross-tenant leak.
+    if (isSystemAdmin && filter.orgIds?.length) {
+      query.andWhere('v.organization_id IN (:...orgIds)', {
+        orgIds: filter.orgIds,
+      });
+    } else {
+      query.andWhere('v.organization_id = :orgId', { orgId });
+    }
 
     if (filter.vStatus) {
       query.andWhere('v.v_status = :vStatus', { vStatus: filter.vStatus });
@@ -451,6 +463,23 @@ export class VehiclesService {
       }
     }
 
+    // `transporterIds` — match any of the given transporter user IDs.
+    if (filter.transporterIds?.length) {
+      query.andWhere('v.transporter_id IN (:...transporterIds)', {
+        transporterIds: filter.transporterIds,
+      });
+    }
+
+    // `groupIds` — vehicles have no group column, so resolve through the
+    // assigned user's group membership: v.user_id must belong to an
+    // organization_users row whose group_id is in the requested set.
+    if (filter.groupIds?.length) {
+      query.andWhere(
+        'v.user_id IN (SELECT ou.user_id FROM organization_users ou WHERE ou.group_id IN (:...groupIds) AND ou.deleted_at IS NULL)',
+        { groupIds: filter.groupIds },
+      );
+    }
+
     // `monthYear` — "MM-yyyy" single param covering month + year. Parsed
     // here (DTO regex already enforced the shape) and applied as two
     // EXTRACT() predicates on created_at. Using a half-open date-range
@@ -473,7 +502,7 @@ export class VehiclesService {
       .take(filter.limit)
       .getMany();
 
-    const enriched = await this.enrichVehicles(orgId, vehicles);
+    const enriched = await this.enrichVehicles(vehicles);
 
     return {
       data: enriched.map(mapVehicleToResponse),
@@ -495,7 +524,7 @@ export class VehiclesService {
       throw new NotFoundException(`Vehicle with ID '${id}' not found`);
     }
 
-    const [enriched] = await this.enrichVehicles(orgId, [vehicle]);
+    const [enriched] = await this.enrichVehicles([vehicle]);
     return mapVehicleToResponse(enriched);
   }
 
@@ -523,10 +552,16 @@ export class VehiclesService {
    * actually being returned.
    */
   private async enrichVehicles(
-    orgId: string,
     vehicles: Vehicle[],
   ): Promise<EnrichedVehicleRow[]> {
     if (vehicles.length === 0) return [];
+
+    // Derive the org set from the vehicles themselves so a multi-org result
+    // (system-admin querying several orgs) enriches every row, not just one
+    // org. For single-org callers this is just the one org.
+    const orgIds = Array.from(
+      new Set(vehicles.map((v) => v.orgId).filter((x): x is string => Boolean(x))),
+    );
 
     const deviceIds = Array.from(
       new Set(
@@ -557,13 +592,13 @@ export class VehiclesService {
     const [devices, orgUsers, users, organizations] = await Promise.all([
       deviceIds.length
         ? this.deviceRepo.find({
-            where: { id: In(deviceIds), orgId, deletedAt: IsNull() },
+            where: { id: In(deviceIds), orgId: In(orgIds), deletedAt: IsNull() },
           })
         : Promise.resolve<DeviceRef[]>([]),
       userIds.length
         ? this.orgUserRepo.find({
             where: {
-              organizationId: orgId,
+              organizationId: In(orgIds),
               userId: In(userIds),
               deletedAt: IsNull(),
             },
@@ -575,13 +610,17 @@ export class VehiclesService {
           })
         : Promise.resolve<UserRef[]>([]),
       // organizations.id IS the org id — there's no separate org_id column
-      this.organizationRepo.find({ where: { id: orgId } }),
+      this.organizationRepo.find({ where: { id: In(orgIds) } }),
     ]);
 
     const devicesById = new Map(devices.map((d) => [d.id, d]));
-    const orgUsersByUserId = new Map(orgUsers.map((ou) => [ou.userId, ou]));
+    // Key org-user by org+user so two memberships of the same user in
+    // different orgs don't collide on a multi-org result.
+    const orgUsersByOrgUser = new Map(
+      orgUsers.map((ou) => [`${ou.organizationId}:${ou.userId}`, ou]),
+    );
     const usersById = new Map(users.map((u) => [u.id, u]));
-    const organization = organizations[0] ?? null;
+    const orgsById = new Map(organizations.map((o) => [o.id, o]));
 
     return vehicles.map((vehicle) => ({
       vehicle,
@@ -589,12 +628,12 @@ export class VehiclesService {
         ? (devicesById.get(vehicle.currentDeviceId) ?? null)
         : null,
       orgUser: vehicle.userId
-        ? (orgUsersByUserId.get(vehicle.userId) ?? null)
+        ? (orgUsersByOrgUser.get(`${vehicle.orgId}:${vehicle.userId}`) ?? null)
         : null,
       transporter: vehicle.transporterId
         ? (usersById.get(vehicle.transporterId) ?? null)
         : null,
-      organization,
+      organization: orgsById.get(vehicle.orgId) ?? null,
     }));
   }
 
@@ -661,7 +700,7 @@ export class VehiclesService {
 
     // Return the enriched shape — callers that depend on the
     // Vehicle-shaped response should switch to reading `id` / use GET :id.
-    const [enriched] = await this.enrichVehicles(orgId, [saved]);
+    const [enriched] = await this.enrichVehicles([saved]);
     return mapVehicleToResponse(enriched);
   }
 

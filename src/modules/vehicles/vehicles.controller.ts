@@ -140,7 +140,9 @@ export class VehiclesController {
       }
       dto = await this.validateBody(BulkCreateVehiclesDto, parseVehiclesCsv(body));
     } else {
-      dto = await this.validateBody(BulkCreateVehiclesDto, body);
+      // Tolerate a bare JSON array ([...]) in addition to { items: [...] }.
+      const normalized = Array.isArray(body) ? { items: body } : body;
+      dto = await this.validateBody(BulkCreateVehiclesDto, normalized);
     }
 
     return this.vehiclesService.bulkCreate(pathOrgId, dto.items, userId, ip);
@@ -172,8 +174,12 @@ export class VehiclesController {
       'Note: the response field `companyName` was renamed to `orgName` in v1.1.0.',
   })
   @ApiResponse({ status: 200, description: 'Vehicles retrieved successfully' })
-  findAll(@CurrentOrg() orgId: string, @Query() filter: FilterVehicleDto) {
-    return this.vehiclesService.findAll(orgId, filter);
+  findAll(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('isSystemAdmin') isSystemAdmin: boolean | undefined,
+    @Query() filter: FilterVehicleDto,
+  ) {
+    return this.vehiclesService.findAll(orgId, filter, isSystemAdmin === true);
   }
 
   @Get(':id')

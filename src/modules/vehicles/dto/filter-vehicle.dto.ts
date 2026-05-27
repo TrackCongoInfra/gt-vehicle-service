@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
   IsOptional,
   IsString,
@@ -18,6 +19,20 @@ import { VehicleStatus, VehicleType } from '../entities/vehicle.entity';
  */
 const toLowerCaseValue = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
+
+/**
+ * Normalise a multi-value query param into a clean string[]. Accepts both
+ * `?ids=a,b,c` (comma-separated) and `?ids=a&ids=b` (repeated) shapes, plus
+ * any combination. Empty entries are dropped.
+ */
+const toStringArray = ({ value }: { value: unknown }): unknown => {
+  const parts = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+  const out = parts
+    .flatMap((v) => String(v).split(','))
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return out.length ? out : undefined;
+};
 
 /**
  * Mirrors the groups-service enum. `VEHICLE` narrows `entityId` against
@@ -90,6 +105,47 @@ export class FilterVehicleDto extends PaginationDto {
   @IsOptional()
   @IsUUID()
   entityId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by multiple organization IDs. Comma-separated (`?orgIds=a,b`) or ' +
+      'repeated (`?orgIds=a&orgIds=b`). SYSTEM-ADMIN ONLY — ignored for non-admin ' +
+      'callers, who are always scoped to their authenticated org.',
+    type: [String],
+    example: ['32d78f4c-ae34-4396-b65d-1175143da9e2'],
+  })
+  @IsOptional()
+  @Transform(toStringArray)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  orgIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by multiple transporter user IDs (matches `vehicles.transporter_id`). ' +
+      'Comma-separated or repeated.',
+    type: [String],
+    example: ['64813de9-ca32-485a-a15c-1c194de1efac'],
+  })
+  @IsOptional()
+  @Transform(toStringArray)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  transporterIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by multiple group IDs. Matches vehicles whose assigned user ' +
+      '(`vehicles.user_id`) belongs to any of these groups via ' +
+      '`organization_users.group_id`. Comma-separated or repeated.',
+    type: [String],
+    example: ['11111111-1111-1111-1111-111111111111'],
+  })
+  @IsOptional()
+  @Transform(toStringArray)
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  groupIds?: string[];
 
   @ApiPropertyOptional({
     description:
