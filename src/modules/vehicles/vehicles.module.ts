@@ -8,6 +8,7 @@ import { OrganizationRef } from './entities/organization.ref.entity';
 import { VehiclesController } from './vehicles.controller';
 import { VehiclesService } from './vehicles.service';
 import { AuditLog } from '../../shared/entities/audit-log.entity';
+import { OrgSettingsModule } from '../../shared/org-settings/org-settings.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuditLog } from '../../shared/entities/audit-log.entity';
       UserRef,
       OrganizationRef,
     ]),
+    OrgSettingsModule,
   ],
   controllers: [VehiclesController],
   providers: [VehiclesService],

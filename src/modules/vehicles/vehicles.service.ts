@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, In, IsNull, Repository } from 'typeorm';
@@ -21,6 +22,7 @@ import {
   EnrichedVehicleRow,
   mapVehicleToResponse,
 } from './mappers/vehicle-response.mapper';
+import { OrgSettingsReaderService } from '../../shared/org-settings/org-settings-reader.service';
 
 @Injectable()
 export class VehiclesService {
@@ -39,7 +41,157 @@ export class VehiclesService {
     private readonly userRepo: Repository<UserRef>,
     @InjectRepository(OrganizationRef)
     private readonly organizationRepo: Repository<OrganizationRef>,
+    private readonly orgSettings: OrgSettingsReaderService,
   ) {}
+
+  /**
+   * Enforces `organization_settings.resource_quotas.maxDrivers` cap before a
+   * new vehicle is inserted. Quota = null/undefined means UNLIMITED.
+   *
+   * Drivers in this service are represented by the `operator` column on
+   * vehicles — a freeform driver-name string. There is no first-class
+   * `drivers` table owned by this service, so the cap is applied only when
+   * the new vehicle would actually carry an operator (i.e. dto.operator is
+   * a non-empty string), and the count is the number of distinct operator
+   * names already in use across the org's non-deleted vehicles.
+   *
+   * Vehicles created without an operator do not count against the quota and
+   * are not blocked.
+   *
+   * Race-window of one is acceptable per product spec; tightening requires
+   * advisory locks.
+   */
+  private async assertDriverQuota(
+    orgId: string,
+    dto: CreateVehicleDto,
+  ): Promise<void> {
+    const driverName = dto.operator?.trim();
+    if (!driverName) return; // not adding a driver — quota not relevant
+
+    const quota = await this.orgSettings.getQuota(orgId, 'maxDrivers');
+    if (quota === null) return;
+
+    // Distinct operator names currently in use for this org's live vehicles.
+    const distinctOperators = await this.vehicleRepo
+      .createQueryBuilder('v')
+      .select('LOWER(TRIM(v.operator))', 'op')
+      .where('v.orgId = :orgId', { orgId })
+      .andWhere('v.deletedAt IS NULL')
+      .andWhere('v.operator IS NOT NULL')
+      .andWhere("TRIM(v.operator) <> ''")
+      .groupBy('LOWER(TRIM(v.operator))')
+      .getRawMany<{ op: string }>();
+
+    const existingNames = new Set(distinctOperators.map((r) => r.op));
+    const incomingName = driverName.toLowerCase();
+
+    // If the incoming operator name already exists in the org, it's a
+    // re-use — no new driver is being introduced, so the cap doesn't fire.
+    if (existingNames.has(incomingName)) return;
+
+    if (existingNames.size >= quota) {
+      throw new UnprocessableEntityException({
+        code: 'QuotaExceeded',
+        message: `Your organization has reached its drivers limit (${quota}). Contact your administrator to increase the cap.`,
+        statusCode: 422,
+      });
+    }
+  }
+
+  /**
+   * Fill speedLimitKmh / idleThresholdMin from `org_settings.vehicle_defaults`
+   * when the caller didn't provide them. Boolean defaults (geofenceAlertEnabled,
+   * harshDrivingEnabled) are read but skipped here because the vehicle entity
+   * doesn't expose matching columns yet — when those columns land, extend this
+   * helper to map them through. Fail-open: any settings read failure leaves
+   * dto untouched and the entity's DB default applies.
+   */
+  private async applyVehicleDefaults(orgId: string, dto: CreateVehicleDto): Promise<void> {
+    const defaults = await this.orgSettings.getVehicleDefaults(orgId);
+    if (!defaults) return;
+    if (dto.speedLimitKmh === undefined && dto.overspeed === undefined &&
+        defaults.speedLimitKmh !== undefined) {
+      dto.speedLimitKmh = defaults.speedLimitKmh;
+    }
+    if (dto.idleThresholdMin === undefined && defaults.idleTimeoutMin !== undefined) {
+      dto.idleThresholdMin = defaults.idleTimeoutMin;
+    }
+  }
+
+  /**
+   * Validate `dto.customFields` against the org's vehicle-scoped custom field
+   * catalog. Throws 400 BadRequest on:
+   *   - unknown key (not declared on the catalog at this scope)
+   *   - required key missing
+   *   - type mismatch (string field with a number value, etc.)
+   *   - enum value not in enumOptions
+   *
+   * No-op when the org has no vehicle-scoped catalog OR the caller didn't
+   * supply customFields. Pure validation — doesn't mutate dto.
+   */
+  private async validateCustomFields(orgId: string, dto: CreateVehicleDto): Promise<void> {
+    const catalog = await this.orgSettings.getCustomFieldsForScope(orgId, 'vehicle');
+    const provided = (dto.customFields ?? null) as Record<string, unknown> | null;
+
+    // No catalog → nothing to validate against; allow anything (legacy callers).
+    if (!catalog.length) return;
+
+    const byName = new Map(catalog.map((f) => [f.fieldName, f]));
+    const errors: string[] = [];
+
+    // Check required fields.
+    for (const def of catalog) {
+      if (def.required && (provided === null || provided[def.fieldName] === undefined)) {
+        errors.push(`customFields.${def.fieldName} is required`);
+      }
+    }
+
+    // Check provided keys exist and match types.
+    if (provided !== null) {
+      for (const [key, value] of Object.entries(provided)) {
+        const def = byName.get(key);
+        if (!def) {
+          errors.push(`customFields.${key} is not declared in this organization's catalog`);
+          continue;
+        }
+        if (value === null || value === undefined) continue;
+        switch (def.fieldType) {
+          case 'string':
+            if (typeof value !== 'string') errors.push(`customFields.${key} must be a string`);
+            break;
+          case 'number':
+            if (typeof value !== 'number' || !Number.isFinite(value))
+              errors.push(`customFields.${key} must be a number`);
+            break;
+          case 'boolean':
+            if (typeof value !== 'boolean') errors.push(`customFields.${key} must be a boolean`);
+            break;
+          case 'date':
+            if (typeof value !== 'string' || Number.isNaN(Date.parse(value)))
+              errors.push(`customFields.${key} must be an ISO date string`);
+            break;
+          case 'enum':
+            if (typeof value !== 'string' ||
+                !(def.enumOptions ?? []).includes(value)) {
+              errors.push(
+                `customFields.${key} must be one of [${(def.enumOptions ?? []).join(', ')}]`,
+              );
+            }
+            break;
+        }
+      }
+    }
+
+    if (errors.length) {
+      throw new HttpException(
+        {
+          success: false,
+          error: { code: 'CustomFieldsValidationFailed', message: errors, statusCode: 400 },
+        },
+        400,
+      );
+    }
+  }
 
   async create(
     orgId: string,
@@ -56,6 +208,18 @@ export class VehiclesService {
         `Vehicle with number '${dto.vehicleNo}' already exists for this organization`,
       );
     }
+
+    await this.assertDriverQuota(orgId, dto);
+
+    // Fill in fields the caller didn't specify from org_settings.vehicle_defaults.
+    // Mutating the dto here keeps buildVehicleData's existing alias logic in
+    // one place; settings are a "default if absent" — explicit dto values win.
+    await this.applyVehicleDefaults(orgId, dto);
+
+    // Validate any caller-supplied custom_fields payload against the org's
+    // custom_fields catalog (vehicle-scoped definitions). Throws 400 on
+    // schema mismatch — required keys missing, types wrong, unknown keys, etc.
+    await this.validateCustomFields(orgId, dto);
 
     // ── Resolve cross-entity lookups BEFORE saving ──────────────────
     // (keeps us from leaving a half-created vehicle if a lookup fails)

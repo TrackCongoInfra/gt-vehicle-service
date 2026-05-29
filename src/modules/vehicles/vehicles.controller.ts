@@ -15,8 +15,10 @@ import {
   Query,
   Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { MaintenanceGuard } from '../../shared/org-settings/maintenance.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
@@ -45,6 +47,7 @@ import { RequirePermissions, CurrentUser, CurrentOrg } from '@globaltracking/aut
 @ApiTags('Vehicles')
 @ApiExtraModels(CreateVehicleDto, BulkCreateVehiclesDto)
 @Controller('vehicles')
+@UseGuards(MaintenanceGuard)
 export class VehiclesController {
   constructor(private readonly vehiclesService: VehiclesService) {}
 
