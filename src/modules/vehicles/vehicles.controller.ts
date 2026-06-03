@@ -182,6 +182,28 @@ export class VehiclesController {
     return this.vehiclesService.findAll(orgId, filter, isSystemAdmin === true);
   }
 
+  @Get('by-plate')
+  @RequirePermissions('vehicles:read')
+  @ApiOperation({
+    summary: 'Look up a vehicle by plate (case-insensitive)',
+    description:
+      'Used by the GT AFRIK Operations technician scan flow (gt-field-ops-service) ' +
+      'during installation workflow step 3. Returns the enriched vehicle payload ' +
+      'if a row exists in the caller\'s org with the given plate, or null. ' +
+      'Declared above GET /:id so the route matches `by-plate` literally rather ' +
+      'than being parsed as a UUID.',
+  })
+  @ApiResponse({ status: 200, description: 'Vehicle (or null) returned' })
+  findByPlate(
+    @CurrentOrg() orgId: string,
+    @Query('plate') plate: string,
+  ) {
+    if (!plate || !plate.trim()) {
+      throw new BadRequestException('Query parameter `plate` is required');
+    }
+    return this.vehiclesService.findByPlate(orgId, plate);
+  }
+
   @Get(':id')
   @RequirePermissions('vehicles:read')
   @ApiOperation({

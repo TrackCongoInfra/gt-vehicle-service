@@ -529,6 +529,35 @@ export class VehiclesService {
   }
 
   /**
+   * Plate lookup for the GT AFRIK Operations technician scan flow
+   * (gt-field-ops-service). Returns the enriched vehicle payload, or null
+   * if no vehicle with that plate exists in the org. Case-insensitive match
+   * on `vehicle_no`.
+   *
+   * Used during installation Workflow A step 3 ("Technician enters vehicle
+   * plate") to surface existing installs and trigger duplicate warnings.
+   */
+  async findByPlate(
+    orgId: string,
+    plate: string,
+  ): Promise<Record<string, unknown> | null> {
+    const normalized = plate.trim();
+    if (!normalized) return null;
+
+    const vehicle = await this.vehicleRepo
+      .createQueryBuilder('v')
+      .where('v.org_id = :orgId', { orgId })
+      .andWhere('UPPER(v.vehicle_no) = UPPER(:plate)', { plate: normalized })
+      .andWhere('v.deleted_at IS NULL')
+      .getOne();
+
+    if (!vehicle) return null;
+
+    const [enriched] = await this.enrichVehicles([vehicle]);
+    return mapVehicleToResponse(enriched);
+  }
+
+  /**
    * Internal helper used by create/update to fetch the raw Vehicle entity
    * without running the enrichment (audit logging + duplicate checks don't
    * need the joined fields).

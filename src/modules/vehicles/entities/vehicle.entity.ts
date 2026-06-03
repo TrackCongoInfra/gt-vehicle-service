@@ -227,4 +227,27 @@ export class Vehicle extends BaseOrgEntity {
 
   @Column({ type: 'timestamp', name: 'deleted_at', nullable: true })
   deletedAt: Date | null;
+
+  // ── GT AFRIK Operations (gt-field-ops-service) fields ─────
+  //
+  // Additive columns owned by the GT AFRIK Operations workflow. Vehicles
+  // owned outside that workflow leave these NULL. See gt-field-ops-service
+  // plan v2 §2.3.
+
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId: string | null;
+
+  @Column({ type: 'uuid', name: 'current_sim_id', nullable: true })
+  currentSimId: string | null;
+
+  // pending | active | inactive | superseded
+  @Column({ type: 'varchar', length: 30, name: 'installation_status', nullable: true })
+  installationStatus: string | null;
+
+  // not_ready | ready | billed | suspended
+  @Column({ type: 'varchar', length: 30, name: 'billing_status', nullable: true })
+  billingStatus: string | null;
+
+  @Column({ type: 'date', name: 'billing_start_date', nullable: true })
+  billingStartDate: Date | null;
 }
