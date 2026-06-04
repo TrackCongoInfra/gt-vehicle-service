@@ -227,4 +227,20 @@ export class Vehicle extends BaseOrgEntity {
 
   @Column({ type: 'timestamp', name: 'deleted_at', nullable: true })
   deletedAt: Date | null;
+
+  // ── GT AFRIK Operations (gt-field-ops-service) ──────────────
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId: string | null;
+
+  @Column({ type: 'uuid', name: 'current_sim_id', nullable: true })
+  currentSimId: string | null;
+
+  @Column({ type: 'varchar', length: 30, name: 'installation_status', nullable: true })
+  installationStatus: string | null;
+
+  @Column({ type: 'varchar', length: 30, name: 'billing_status', nullable: true })
+  billingStatus: string | null;
+
+  @Column({ type: 'date', name: 'billing_start_date', nullable: true })
+  billingStartDate: Date | null;
 }

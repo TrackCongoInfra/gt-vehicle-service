@@ -679,6 +679,26 @@ export class VehiclesService {
     };
   }
 
+  async findByPlate(
+    orgId: string,
+    plate: string,
+  ): Promise<Record<string, unknown> | null> {
+    const normalized = plate.trim();
+    if (!normalized) return null;
+
+    const vehicle = await this.vehicleRepo
+      .createQueryBuilder('v')
+      .where('v.orgId = :orgId', { orgId })
+      .andWhere('UPPER(v.vehicleNo) = UPPER(:plate)', { plate: normalized })
+      .andWhere('v.deletedAt IS NULL')
+      .getOne();
+
+    if (!vehicle) return null;
+
+    const [enriched] = await this.enrichVehicles([vehicle]);
+    return mapVehicleToResponse(enriched);
+  }
+
   async findOne(orgId: string, id: string): Promise<Record<string, unknown>> {
     const vehicle = await this.vehicleRepo.findOne({
       where: { id, orgId, deletedAt: IsNull() },
