@@ -318,11 +318,12 @@ export class CreateVehicleDto {
       'Configured/rated fuel mileage in km/L. Intended for vehicles without a ' +
       'fuel sensor (where actual consumption cannot be measured). Distinct from ' +
       'the `mileage` correction factor; surfaced read-only on GET responses and ' +
-      'the live SSE stream.',
+      'on the live position SSE stream (via gt-telemetry-service). Must be ' +
+      'positive (0 is rejected — use null to clear).',
   })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @Min(0.01)
   @Max(999.99)
   mileageKmL?: number;
 
