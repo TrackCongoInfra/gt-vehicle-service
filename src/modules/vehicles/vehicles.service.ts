@@ -357,6 +357,7 @@ export class VehiclesService {
         durationOdometer: dto.durationOdometer,
       }),
       ...(dto.mileage !== undefined && { mileage: dto.mileage }),
+      ...(dto.mileageKmL !== undefined && { mileageKmpl: dto.mileageKmL }),
 
       ...(remarks !== undefined && { remarks }),
       ...(remarks2 !== undefined && { remarks2 }),
@@ -958,6 +959,7 @@ export class VehiclesService {
     setIf('odometerKm', odometerKm);
     setIf('durationOdometer', dto.durationOdometer);
     setIf('mileage', dto.mileage);
+    setIf('mileageKmpl', dto.mileageKmL);
 
     const remarks = dto.remarks ?? dto.remark;
     if (remarks !== undefined) vehicle.remarks = remarks ?? null;

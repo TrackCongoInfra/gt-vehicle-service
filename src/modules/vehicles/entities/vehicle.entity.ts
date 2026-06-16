@@ -203,6 +203,13 @@ export class Vehicle extends BaseOrgEntity {
   @Column({ type: 'decimal', precision: 6, scale: 2, default: 1 })
   mileage: number;
 
+  // Operator-configured rated fuel mileage in km/L. Unlike `mileage` above
+  // (a correction factor, default 1), this is the vehicle's stated km/L —
+  // surfaced for vehicles without a fuel sensor, where actual consumption
+  // cannot be measured. NULL = not set.
+  @Column({ type: 'decimal', precision: 6, scale: 2, name: 'mileage_kmpl', nullable: true })
+  mileageKmpl: number | null;
+
   @Column({ type: 'varchar', length: 30, name: 'fuel_type', nullable: true })
   fuelType: string | null;
 

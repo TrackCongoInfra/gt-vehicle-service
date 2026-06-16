@@ -312,6 +312,20 @@ export class CreateVehicleDto {
   @Min(0)
   mileage?: number;
 
+  @ApiPropertyOptional({
+    example: 12.5,
+    description:
+      'Configured/rated fuel mileage in km/L. Intended for vehicles without a ' +
+      'fuel sensor (where actual consumption cannot be measured). Distinct from ' +
+      'the `mileage` correction factor; surfaced read-only on GET responses and ' +
+      'the live SSE stream.',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999.99)
+  mileageKmL?: number;
+
   @ApiPropertyOptional({ example: 'diesel' })
   @IsOptional()
   @IsString()

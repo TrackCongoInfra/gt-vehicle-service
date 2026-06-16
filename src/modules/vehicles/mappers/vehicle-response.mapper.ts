@@ -187,6 +187,10 @@ export function mapVehicleToResponse(row: EnrichedVehicleRow): Record<string, un
 
     // ── Numbers ──────────────────────────────────────────────────
     mileage: Number(vehicle.mileage ?? 0),
+    // Operator-configured rated km/L (null when unset → UI shows "—").
+    // Kept null rather than coerced to 0 so "not set" is distinguishable.
+    mileageKmL:
+      vehicle.mileageKmpl == null ? null : Number(vehicle.mileageKmpl),
     overspeed: vehicle.speedLimitKmh,
     odometer: Math.round(Number(vehicle.odometerKm ?? 0)),
     engineHours: Number(vehicle.engineHours ?? 0),

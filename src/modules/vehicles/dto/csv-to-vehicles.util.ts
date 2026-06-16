@@ -25,6 +25,7 @@ const NUMBER_FIELDS = new Set([
   'overspeed',
   'idleThresholdMin',
   'mileage',
+  'mileageKmL',
   'durationOdometer',
   'odometer',
   'odometerKm',
